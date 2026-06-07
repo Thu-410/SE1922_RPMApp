@@ -10,8 +10,8 @@ const conn = mysql.createConnection({
     host: "localhost",
     port: 3306, // port MySQL
     user: "root",
-    password: "123456",
-    database: "OrderFood"
+    password: "",
+    database: "orderfood"
 });
 
 conn.connect((err)=>{
@@ -23,7 +23,7 @@ conn.connect((err)=>{
 });
 
 app.get('/data',(req,res)=>{
-    conn.query('SELECT * FROM mytable',(err,results)=>{
+    conn.query('SELECT * FROM users',(err,results)=>{
         if(err){
             res.status(500).json(err);
         }else{
