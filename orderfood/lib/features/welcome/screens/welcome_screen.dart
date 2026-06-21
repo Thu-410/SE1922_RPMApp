@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:orderfood/features/home/screens/home_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -6,75 +7,76 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.orange,
+      backgroundColor: Colors.blue.shade50, // màu nền dịu mắt
 
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo
+                Icon(Icons.fastfood, size: 100, color: Colors.indigo),
 
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+                const SizedBox(height: 20),
 
-            children: [
-              // Logo
-              const Icon(Icons.fastfood, size: 120, color: Colors.white),
-
-              const SizedBox(height: 30),
-
-              // Title
-              const Text(
-                "Order Food",
-                style: TextStyle(
-                  fontSize: 38,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                // Title
+                const Text(
+                  "Order Food",
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 15),
+                const SizedBox(height: 10),
 
-              // Subtitle
-              const Text(
-                "Đặt món nhanh chóng\nMọi lúc mọi nơi",
-                textAlign: TextAlign.center,
-
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white70,
-                  height: 1.5,
+                // Subtitle
+                const Text(
+                  "Đặt món nhanh chóng\nMọi lúc mọi nơi",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 60),
+                const SizedBox(height: 40),
 
-              // Start Button
-              SizedBox(
-                width: double.infinity,
-
-                child: ElevatedButton(
-                  onPressed: () {
-                    // TODO:
-                    // Navigate to HomeScreen
-                  },
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.orange,
-
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                // Start Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomeScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      "Bắt đầu",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-
-                  child: const Text(
-                    "Bắt đầu",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
