@@ -1,2 +1,2 @@
-# SE1922_orderfood
-Hệ thống giúp việc order đồ ăn nhanh hơn
+# SE1922_RPMApp (Rental property management app)
+Ứng dụng giúp quản lý trọ thông minh v đơn giản hơn cho chủ trọ vs người thuê
