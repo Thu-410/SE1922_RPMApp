@@ -5,13 +5,14 @@ const cors = require('cors');
 const app = express();
 
 app.use(cors());
+app.use(express.json()); 
 
 const conn = mysql.createConnection({
     host: "localhost",
     port: 3306, // port MySQL
     user: "root",
     password: "",
-    database: "orderfood"
+    database: "quan_ly_tro"
 });
 
 conn.connect((err)=>{
