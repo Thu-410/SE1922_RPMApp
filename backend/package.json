@@ -1,10 +1,12 @@
 {
-  "name": "untitled1",
+  "name": "rental-management-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "REST API for the rental management application",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js && node --check src/app.js && node --check src/config/db.js && node --check src/middlewares/auth.middleware.js && node --check src/middlewares/role.middleware.js && node --check src/modules/utilities/utility.service.js && node --check src/modules/utilities/service-price.service.js && node --check src/modules/utilities/utility.controller.js && node --check src/modules/utilities/utility.route.js && node --check src/modules/invoices/invoice.service.js && node --check src/modules/invoices/invoice.controller.js && node --check src/modules/invoices/invoice.route.js && node --check src/modules/payments/payment.service.js && node --check src/modules/payments/payment.controller.js && node --check src/modules/payments/payment.route.js"
   },
   "keywords": [],
   "author": "",
@@ -12,7 +14,9 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.22.5"
   }
 }
