@@ -10,6 +10,9 @@ app.use(express.json());
 const tenantRoutes = require('./src/modules/tenants/tenant.route');
 app.use('/api/tenants', tenantRoutes);
 
+const contractRoutes = require('./src/modules/contracts/contract.route');
+app.use('/api/contracts', contractRoutes);
+
 const conn = mysql.createConnection({
     host: "localhost",
     port: 3306, // port MySQL
