@@ -19,18 +19,33 @@ const createResponse = () => ({
     }
 });
 
+const validRoomBody = (overrides = {}) => ({
+    room_number: "P101",
+    room_name: "Phòng tiêu chuẩn P101",
+    floor: 0,
+    area: 25,
+    price: 2500000,
+    deposit: 2500000,
+    ...overrides
+});
+
 test.afterEach(() => {
     Object.assign(roomService, originalService);
 });
 
-test("createRoom chuẩn hóa dữ liệu và áp dụng giá trị mặc định", async () => {
+test("createRoom chuẩn hóa các trường bắt buộc", async () => {
     let receivedPayload;
     roomService.createRoom = async (payload) => {
         receivedPayload = payload;
         return { id: 1, ...payload };
     };
 
-    const req = { body: { room_number: "  P101  " } };
+    const req = {
+        body: validRoomBody({
+            room_number: "  P101  ",
+            room_name: "  Phòng tiêu chuẩn P101  "
+        })
+    };
     const res = createResponse();
     let nextError;
 
@@ -42,11 +57,11 @@ test("createRoom chuẩn hóa dữ liệu và áp dụng giá trị mặc địn
     assert.equal(res.statusCode, 201);
     assert.deepEqual(receivedPayload, {
         room_number: "P101",
-        room_name: "Phòng P101",
-        floor: 1,
-        area: 0,
-        price: 0,
-        deposit: 0,
+        room_name: "Phòng tiêu chuẩn P101",
+        floor: 0,
+        area: 25,
+        price: 2500000,
+        deposit: 2500000,
         status: "available",
         description: null,
         images: []
@@ -202,8 +217,10 @@ test("createRoom nhận tên phòng và loại bỏ URL ảnh trùng lặp", asy
 
     const req = {
         body: {
-            room_number: "P401",
-            room_name: " Phòng sân thượng P401 ",
+            ...validRoomBody({
+                room_number: "P401",
+                room_name: " Phòng sân thượng P401 "
+            }),
             images: [
                 "https://example.com/room.jpg",
                 "https://example.com/room.jpg",
@@ -229,8 +246,10 @@ test("createRoom nhận tên phòng và loại bỏ URL ảnh trùng lặp", asy
 test("createRoom từ chối URL ảnh không hợp lệ", async () => {
     const req = {
         body: {
-            room_number: "P402",
-            room_name: "Phòng P402",
+            ...validRoomBody({
+                room_number: "P402",
+                room_name: "Phòng P402"
+            }),
             images: ["not-an-url"]
         }
     };
@@ -243,4 +262,32 @@ test("createRoom từ chối URL ảnh không hợp lệ", async () => {
 
     assert.equal(nextError.statusCode, 400);
     assert.match(nextError.message, /URL ảnh/);
+});
+
+test("createRoom từ chối mã hoặc tên chỉ chứa khoảng trắng", async () => {
+    for (const body of [
+        validRoomBody({ room_number: "   " }),
+        validRoomBody({ room_name: "   " })
+    ]) {
+        const req = { body };
+        const res = createResponse();
+        let nextError;
+        await roomController.createRoom(req, res, (error) => {
+            nextError = error;
+        });
+        assert.equal(nextError.statusCode, 400);
+    }
+});
+
+test("createRoom bắt buộc diện tích, giá và tiền cọc lớn hơn 0", async () => {
+    for (const field of ["area", "price", "deposit"]) {
+        const req = { body: validRoomBody({ [field]: 0 }) };
+        const res = createResponse();
+        let nextError;
+        await roomController.createRoom(req, res, (error) => {
+            nextError = error;
+        });
+        assert.equal(nextError.statusCode, 400);
+        assert.match(nextError.message, /lớn hơn 0/);
+    }
 });

@@ -32,14 +32,34 @@ const parseId = (value) => {
     return id;
 };
 
-const parseNonNegativeNumber = (value, fieldName) => {
+const parsePositiveNumber = (value, fieldName) => {
     const number = Number(value);
 
-    if (value === "" || value === null || !Number.isFinite(number) || number < 0) {
-        throw new HttpError(400, `${fieldName} phải là số lớn hơn hoặc bằng 0.`);
+    if (
+        value === "" ||
+        value === null ||
+        value === undefined ||
+        !Number.isFinite(number) ||
+        number <= 0
+    ) {
+        throw new HttpError(400, `${fieldName} phải là số lớn hơn 0.`);
     }
 
     return number;
+};
+
+const isSupportedImageUrl = (url) => {
+    const supportedFormats = ["jpg", "jpeg", "png", "webp", "gif", "avif"];
+    const extension = url.pathname.split(".").pop()?.toLowerCase();
+    const queryFormat = (url.searchParams.get("fm") ||
+        url.searchParams.get("format") ||
+        "").toLowerCase();
+
+    return (
+        supportedFormats.includes(extension) ||
+        supportedFormats.includes(queryFormat) ||
+        url.hostname === "images.unsplash.com"
+    );
 };
 
 const normalizeImages = (value) => {
@@ -69,6 +89,12 @@ const normalizeImages = (value) => {
         if (!["http:", "https:"].includes(url.protocol)) {
             throw new HttpError(400, "URL ảnh phòng phải dùng HTTP hoặc HTTPS.");
         }
+        if (!isSupportedImageUrl(url)) {
+            throw new HttpError(
+                400,
+                "Ảnh phòng chỉ nhận định dạng JPG, JPEG, PNG, WEBP, GIF hoặc AVIF."
+            );
+        }
         if (!images.includes(image)) images.push(image);
     }
     return images;
@@ -94,10 +120,7 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
     }
 
     if (!partial || has("room_name")) {
-        const defaultName = payload.room_number
-            ? `Phòng ${payload.room_number}`
-            : undefined;
-        const value = partial ? body.room_name : body.room_name ?? defaultName;
+        const value = body.room_name;
         if (typeof value !== "string" || !value.trim()) {
             throw new HttpError(400, "Tên phòng là bắt buộc.");
         }
@@ -108,23 +131,26 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
     }
 
     if (!partial || has("floor")) {
-        const floor = partial ? Number(body.floor) : Number(body.floor ?? 1);
-        if (!Number.isInteger(floor) || floor < 1) {
-            throw new HttpError(400, "Tầng phải là số nguyên lớn hơn hoặc bằng 1.");
+        const floor = Number(body.floor);
+        if (
+            body.floor === "" ||
+            body.floor === null ||
+            body.floor === undefined ||
+            !Number.isInteger(floor) ||
+            floor < 0
+        ) {
+            throw new HttpError(400, "Tầng phải là số nguyên lớn hơn hoặc bằng 0.");
         }
         payload.floor = floor;
     }
 
-    for (const [field, label, defaultValue] of [
-        ["area", "Diện tích", 0],
-        ["price", "Giá phòng", 0],
-        ["deposit", "Tiền cọc", 0]
+    for (const [field, label] of [
+        ["area", "Diện tích"],
+        ["price", "Giá phòng"],
+        ["deposit", "Tiền cọc"]
     ]) {
         if (!partial || has(field)) {
-            payload[field] = parseNonNegativeNumber(
-                partial ? body[field] : body[field] ?? defaultValue,
-                label
-            );
+            payload[field] = parsePositiveNumber(body[field], label);
         }
     }
 

@@ -47,6 +47,24 @@ const run = async () => {
         roomId = created.data.id;
         assert(created.data.images.length === 2, "Tạo phòng chưa lưu đủ ảnh.");
 
+        const duplicateResponse = await fetch(baseUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                room_number: roomNumber,
+                room_name: "Phòng trùng mã",
+                floor: 0,
+                area: 20,
+                price: 2000000,
+                deposit: 2000000,
+                status: "available"
+            })
+        });
+        assert(
+            duplicateResponse.status === 409,
+            "Backend chưa chặn mã phòng trùng."
+        );
+
         await pool.execute(
             `INSERT INTO utility_readings
                 (room_id, month, year, note)

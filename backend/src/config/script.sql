@@ -51,15 +51,19 @@ CREATE TABLE rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   room_number VARCHAR(50) NOT NULL UNIQUE,
   room_name VARCHAR(150) NOT NULL,
-  floor INT NOT NULL DEFAULT 1,
-  area DECIMAL(10,2) NOT NULL DEFAULT 0,
-  price DECIMAL(12,2) NOT NULL DEFAULT 0,
-  deposit DECIMAL(12,2) NOT NULL DEFAULT 0,
+  floor INT NOT NULL,
+  area DECIMAL(10,2) NOT NULL,
+  price DECIMAL(12,2) NOT NULL,
+  deposit DECIMAL(12,2) NOT NULL,
   status ENUM('available', 'occupied', 'maintenance', 'inactive') NOT NULL DEFAULT 'available',
   description TEXT,
   image_url VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT chk_rooms_floor CHECK (floor >= 0),
+  CONSTRAINT chk_rooms_area CHECK (area > 0),
+  CONSTRAINT chk_rooms_price CHECK (price > 0),
+  CONSTRAINT chk_rooms_deposit CHECK (deposit > 0)
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_rooms_status ON rooms(status);

@@ -145,15 +145,17 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
     return null;
   }
 
-  String? _positiveInt(String? value) {
+  String? _nonNegativeInt(String? value) {
     final number = int.tryParse(value ?? '');
-    if (number == null || number < 1) return 'Giá trị phải là số nguyên từ 1';
+    if (number == null || number < 0) {
+      return 'Giá trị phải là số nguyên từ 0';
+    }
     return null;
   }
 
-  String? _nonNegativeNumber(String? value) {
+  String? _positiveNumber(String? value) {
     final number = double.tryParse((value ?? '').replaceAll(',', '.'));
-    if (number == null || number < 0) return 'Giá trị phải là số từ 0 trở lên';
+    if (number == null || number <= 0) return 'Giá trị phải là số lớn hơn 0';
     return null;
   }
 
@@ -166,6 +168,18 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
       return 'URL ảnh phải bắt đầu bằng http:// hoặc https://';
     }
     if (value.trim().length > 500) return 'URL không được vượt quá 500 ký tự';
+    const formats = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'};
+    final extension = uri.pathSegments.isEmpty
+        ? ''
+        : uri.pathSegments.last.split('.').last.toLowerCase();
+    final queryFormat =
+        (uri.queryParameters['fm'] ?? uri.queryParameters['format'] ?? '')
+            .toLowerCase();
+    if (!formats.contains(extension) &&
+        !formats.contains(queryFormat) &&
+        uri.host != 'images.unsplash.com') {
+      return 'Chỉ nhận ảnh JPG, JPEG, PNG, WEBP, GIF hoặc AVIF';
+    }
     return null;
   }
 
@@ -235,7 +249,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                         children: [
                           TextFormField(
                             controller: _floorController,
-                            validator: _positiveInt,
+                            validator: _nonNegativeInt,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
@@ -247,7 +261,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                           ),
                           TextFormField(
                             controller: _areaController,
-                            validator: _nonNegativeNumber,
+                            validator: _positiveNumber,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -290,7 +304,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                         children: [
                           TextFormField(
                             controller: _priceController,
-                            validator: _nonNegativeNumber,
+                            validator: _positiveNumber,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
@@ -302,7 +316,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                           ),
                           TextFormField(
                             controller: _depositController,
-                            validator: _nonNegativeNumber,
+                            validator: _positiveNumber,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
