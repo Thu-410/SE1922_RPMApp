@@ -7,11 +7,14 @@ const app = express();
 app.use(cors());
 app.use(express.json()); 
 
+const tenantRoutes = require('./src/modules/tenants/tenant.route');
+app.use('/api/tenants', tenantRoutes);
+
 const conn = mysql.createConnection({
     host: "localhost",
     port: 3306, // port MySQL
     user: "root",
-    password: "",
+    password: "123456",
     database: "quan_ly_tro"
 });
 
