@@ -42,13 +42,14 @@ test("createRoom chuẩn hóa dữ liệu và áp dụng giá trị mặc địn
     assert.equal(res.statusCode, 201);
     assert.deepEqual(receivedPayload, {
         room_number: "P101",
+        room_name: "Phòng P101",
         floor: 1,
         area: 0,
         price: 0,
         deposit: 0,
         status: "available",
         description: null,
-        image_url: null
+        images: []
     });
 });
 
@@ -190,4 +191,56 @@ test("deleteRoom xóa phòng tồn tại", async () => {
     assert.equal(nextError, undefined);
     assert.equal(receivedId, 5);
     assert.equal(res.body.success, true);
+});
+
+test("createRoom nhận tên phòng và loại bỏ URL ảnh trùng lặp", async () => {
+    let receivedPayload;
+    roomService.createRoom = async (payload) => {
+        receivedPayload = payload;
+        return { id: 8, ...payload };
+    };
+
+    const req = {
+        body: {
+            room_number: "P401",
+            room_name: " Phòng sân thượng P401 ",
+            images: [
+                "https://example.com/room.jpg",
+                "https://example.com/room.jpg",
+                "https://example.com/detail.jpg"
+            ]
+        }
+    };
+    const res = createResponse();
+    let nextError;
+
+    await roomController.createRoom(req, res, (error) => {
+        nextError = error;
+    });
+
+    assert.equal(nextError, undefined);
+    assert.equal(receivedPayload.room_name, "Phòng sân thượng P401");
+    assert.deepEqual(receivedPayload.images, [
+        "https://example.com/room.jpg",
+        "https://example.com/detail.jpg"
+    ]);
+});
+
+test("createRoom từ chối URL ảnh không hợp lệ", async () => {
+    const req = {
+        body: {
+            room_number: "P402",
+            room_name: "Phòng P402",
+            images: ["not-an-url"]
+        }
+    };
+    const res = createResponse();
+    let nextError;
+
+    await roomController.createRoom(req, res, (error) => {
+        nextError = error;
+    });
+
+    assert.equal(nextError.statusCode, 400);
+    assert.match(nextError.message, /URL ảnh/);
 });

@@ -3,6 +3,7 @@ const { pool } = require("../../config/db");
 const ROOM_COLUMNS = [
     "id",
     "room_number",
+    "room_name",
     "floor",
     "area",
     "price",
@@ -16,6 +17,7 @@ const ROOM_COLUMNS = [
 
 const UPDATABLE_FIELDS = [
     "room_number",
+    "room_name",
     "floor",
     "area",
     "price",
@@ -24,6 +26,48 @@ const UPDATABLE_FIELDS = [
     "description",
     "image_url"
 ];
+
+const attachImages = async (executor, rooms) => {
+    if (rooms.length === 0) return rooms;
+
+    const placeholders = rooms.map(() => "?").join(", ");
+    const [imageRows] = await executor.execute(
+        `SELECT room_id, image_url
+         FROM room_images
+         WHERE room_id IN (${placeholders})
+         ORDER BY room_id ASC, sort_order ASC, id ASC`,
+        rooms.map((room) => room.id)
+    );
+
+    const imagesByRoom = new Map();
+    for (const image of imageRows) {
+        const images = imagesByRoom.get(image.room_id) || [];
+        images.push(image.image_url);
+        imagesByRoom.set(image.room_id, images);
+    }
+
+    return rooms.map((room) => {
+        const images = imagesByRoom.get(room.id) || [];
+        if (images.length === 0 && room.image_url) images.push(room.image_url);
+        return {
+            ...room,
+            image_url: images[0] || null,
+            images
+        };
+    });
+};
+
+const insertImages = async (executor, roomId, images) => {
+    if (!images || images.length === 0) return;
+
+    const placeholders = images.map(() => "(?, ?, ?)").join(", ");
+    const values = images.flatMap((imageUrl, index) => [roomId, imageUrl, index]);
+    await executor.execute(
+        `INSERT INTO room_images (room_id, image_url, sort_order)
+         VALUES ${placeholders}`,
+        values
+    );
+};
 
 const getRooms = async ({ status } = {}) => {
     let query = `SELECT ${ROOM_COLUMNS} FROM rooms`;
@@ -35,67 +79,106 @@ const getRooms = async ({ status } = {}) => {
     }
 
     query += " ORDER BY room_number ASC";
-
     const [rows] = await pool.execute(query, params);
-    return rows;
+    return attachImages(pool, rows);
 };
 
-const getRoomById = async (id) => {
-    const [rows] = await pool.execute(
+const getRoomById = async (id, executor = pool) => {
+    const [rows] = await executor.execute(
         `SELECT ${ROOM_COLUMNS} FROM rooms WHERE id = ? LIMIT 1`,
         [id]
     );
 
-    return rows[0] || null;
+    if (!rows[0]) return null;
+    const [room] = await attachImages(executor, rows);
+    return room;
 };
 
 const createRoom = async (room) => {
-    const [result] = await pool.execute(
-        `INSERT INTO rooms
-            (room_number, floor, area, price, deposit, status, description, image_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-            room.room_number,
-            room.floor,
-            room.area,
-            room.price,
-            room.deposit,
-            room.status,
-            room.description,
-            room.image_url
-        ]
-    );
+    const connection = await pool.getConnection();
 
-    return getRoomById(result.insertId);
+    try {
+        await connection.beginTransaction();
+        const [result] = await connection.execute(
+            `INSERT INTO rooms
+                (room_number, room_name, floor, area, price, deposit, status,
+                 description, image_url)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                room.room_number,
+                room.room_name,
+                room.floor,
+                room.area,
+                room.price,
+                room.deposit,
+                room.status,
+                room.description,
+                room.images[0] || null
+            ]
+        );
+
+        await insertImages(connection, result.insertId, room.images);
+        await connection.commit();
+        return getRoomById(result.insertId);
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 };
 
 const updateRoom = async (id, changes) => {
-    const fields = UPDATABLE_FIELDS.filter((field) =>
-        Object.prototype.hasOwnProperty.call(changes, field)
-    );
+    const connection = await pool.getConnection();
 
-    if (fields.length === 0) {
+    try {
+        await connection.beginTransaction();
+        const [existingRows] = await connection.execute(
+            "SELECT id FROM rooms WHERE id = ? FOR UPDATE",
+            [id]
+        );
+
+        if (!existingRows[0]) {
+            await connection.rollback();
+            return null;
+        }
+
+        const scalarChanges = { ...changes };
+        delete scalarChanges.images;
+
+        if (Object.prototype.hasOwnProperty.call(changes, "images")) {
+            scalarChanges.image_url = changes.images[0] || null;
+        }
+
+        const fields = UPDATABLE_FIELDS.filter((field) =>
+            Object.prototype.hasOwnProperty.call(scalarChanges, field)
+        );
+
+        if (fields.length > 0) {
+            const assignments = fields.map((field) => `${field} = ?`).join(", ");
+            const values = fields.map((field) => scalarChanges[field]);
+            await connection.execute(
+                `UPDATE rooms SET ${assignments} WHERE id = ?`,
+                [...values, id]
+            );
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes, "images")) {
+            await connection.execute("DELETE FROM room_images WHERE room_id = ?", [id]);
+            await insertImages(connection, id, changes.images);
+        }
+
+        await connection.commit();
         return getRoomById(id);
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
     }
-
-    const assignments = fields.map((field) => `${field} = ?`).join(", ");
-    const values = fields.map((field) => changes[field]);
-
-    const [result] = await pool.execute(
-        `UPDATE rooms SET ${assignments} WHERE id = ?`,
-        [...values, id]
-    );
-
-    if (result.affectedRows === 0) {
-        return null;
-    }
-
-    return getRoomById(id);
 };
 
-const updateRoomStatus = async (id, status) => {
-    return updateRoom(id, { status });
-};
+const updateRoomStatus = async (id, status) => updateRoom(id, { status });
 
 const deleteRoom = async (id) => {
     const [result] = await pool.execute("DELETE FROM rooms WHERE id = ?", [id]);

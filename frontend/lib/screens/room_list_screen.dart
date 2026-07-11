@@ -30,6 +30,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
     final query = _query.toLowerCase();
     return _rooms.where((room) {
       return room.roomNumber.toLowerCase().contains(query) ||
+          room.roomName.toLowerCase().contains(query) ||
           '${room.floor}'.contains(query) ||
           (room.description?.toLowerCase().contains(query) ?? false);
     }).toList();
@@ -230,7 +231,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
                     controller: _searchController,
                     onChanged: (value) => setState(() => _query = value.trim()),
                     decoration: InputDecoration(
-                      hintText: 'Tìm theo số phòng, tầng hoặc mô tả...',
+                      hintText: 'Tìm theo mã, tên phòng, tầng hoặc mô tả...',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _query.isEmpty
                           ? null
@@ -346,7 +347,7 @@ class _RoomCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Phòng ${room.roomNumber}',
+                            room.roomName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleMedium
@@ -359,6 +360,15 @@ class _RoomCard extends StatelessWidget {
                           color: Color(0xFF98A2B3),
                         ),
                       ],
+                    ),
+                    Text(
+                      'Mã phòng: ${room.roomNumber}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF667085),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     RoomStatusChip(status: room.status, compact: true),

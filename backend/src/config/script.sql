@@ -50,6 +50,7 @@ CREATE INDEX idx_users_status ON users(status);
 CREATE TABLE rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   room_number VARCHAR(50) NOT NULL UNIQUE,
+  room_name VARCHAR(150) NOT NULL,
   floor INT NOT NULL DEFAULT 1,
   area DECIMAL(10,2) NOT NULL DEFAULT 0,
   price DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -63,6 +64,21 @@ CREATE TABLE rooms (
 
 CREATE INDEX idx_rooms_status ON rooms(status);
 CREATE INDEX idx_rooms_floor ON rooms(floor);
+
+-- Nhiều ảnh chi tiết cho mỗi phòng
+CREATE TABLE room_images (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  room_id INT NOT NULL,
+  image_url VARCHAR(500) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_room_images_room
+    FOREIGN KEY (room_id) REFERENCES rooms(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_room_images_room_id ON room_images(room_id);
 
 -- =========================================================
 -- 4. TENANTS
@@ -399,12 +415,28 @@ INSERT INTO users (id, role_id, full_name, email, password, phone, status) VALUE
 (6, 3, 'Đỗ Minh Đức', 'duc@gmail.com', '123456', '0901000006', 'inactive');
 
 -- 3. Rooms
-INSERT INTO rooms (id, room_number, floor, area, price, deposit, status, description, image_url) VALUES
-(1, 'P101', 1, 25.00, 2500000, 2500000, 'occupied', 'Phòng tầng 1, có cửa sổ, gần cổng', NULL),
-(2, 'P102', 1, 28.00, 2800000, 2800000, 'occupied', 'Phòng tầng 1, có gác lửng', NULL),
-(3, 'P201', 2, 30.00, 3000000, 3000000, 'available', 'Phòng trống, sạch sẽ, có ban công', NULL),
-(4, 'P202', 2, 22.00, 2200000, 2200000, 'maintenance', 'Phòng đang sửa lại nhà vệ sinh', NULL),
-(5, 'P301', 3, 35.00, 3500000, 3500000, 'inactive', 'Tạm ngừng sử dụng', NULL);
+INSERT INTO rooms (id, room_number, room_name, floor, area, price, deposit, status, description, image_url) VALUES
+(1, 'P101', 'Phòng tiêu chuẩn P101', 1, 25.00, 2500000, 2500000, 'occupied', 'Phòng tầng 1 thoáng mát, có cửa sổ lớn, gần cổng và khu để xe. Phòng phù hợp cho 1-2 người ở.', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200'),
+(2, 'P102', 'Phòng gác lửng P102', 1, 28.00, 2800000, 2800000, 'occupied', 'Phòng có gác lửng rộng, khu bếp riêng và đầy đủ ánh sáng tự nhiên.', 'https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=1200'),
+(3, 'P201', 'Phòng ban công P201', 2, 30.00, 3000000, 3000000, 'available', 'Phòng trống sạch sẽ, có ban công riêng, phù hợp cho gia đình nhỏ hoặc hai người đi làm.', 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200'),
+(4, 'P202', 'Phòng tiện nghi P202', 2, 22.00, 2200000, 2200000, 'maintenance', 'Phòng đang sửa lại nhà vệ sinh và thay mới hệ thống đèn, dự kiến sớm hoàn thành.', 'https://images.unsplash.com/photo-1560448075-bb485b067938?w=1200'),
+(5, 'P301', 'Phòng cao cấp P301', 3, 35.00, 3500000, 3500000, 'inactive', 'Phòng diện tích lớn ở tầng 3, hiện tạm ngừng sử dụng để nâng cấp nội thất.', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200');
+
+INSERT INTO room_images (room_id, image_url, sort_order) VALUES
+(1, 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200', 0),
+(1, 'https://images.unsplash.com/photo-1560185008-b033106af5c3?w=1200', 1),
+(1, 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=1200', 2),
+(2, 'https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=1200', 0),
+(2, 'https://images.unsplash.com/photo-1560448205-4d9b3e6bb6db?w=1200', 1),
+(2, 'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=1200', 2),
+(3, 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200', 0),
+(3, 'https://images.unsplash.com/photo-1564078516393-cf04bd966897?w=1200', 1),
+(3, 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=1200', 2),
+(4, 'https://images.unsplash.com/photo-1560448075-bb485b067938?w=1200', 0),
+(4, 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200', 1),
+(5, 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200', 0),
+(5, 'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=1200', 1),
+(5, 'https://images.unsplash.com/photo-1615874694520-474822394e73?w=1200', 2);
 
 -- 4. Tenants
 INSERT INTO tenants (id, user_id, room_id, full_name, phone, email, citizen_id, date_of_birth, hometown, address, is_representative, status) VALUES

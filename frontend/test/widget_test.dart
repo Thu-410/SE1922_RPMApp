@@ -24,15 +24,23 @@ void main() {
     final room = Room.fromJson({
       'id': 1,
       'room_number': 'A101',
+      'room_name': 'Phòng ban công A101',
       'floor': 1,
       'area': '25.5',
       'price': '3500000',
       'deposit': 3500000,
       'status': 'available',
+      'images': [
+        'https://example.com/room-1.jpg',
+        'https://example.com/room-2.jpg',
+      ],
     });
 
     expect(room.roomNumber, 'A101');
+    expect(room.roomName, 'Phòng ban công A101');
     expect(room.area, 25.5);
     expect(room.status, RoomStatus.available);
+    expect(room.images.length, 2);
+    expect(room.imageUrl, 'https://example.com/room-1.jpg');
   });
 }

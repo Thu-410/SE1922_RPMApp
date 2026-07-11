@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../core/formatters.dart';
 import '../models/room.dart';
 import '../services/room_api_service.dart';
-import '../widgets/room_image.dart';
+import '../widgets/room_gallery.dart';
 import '../widgets/room_status_chip.dart';
 import 'edit_room_screen.dart';
+import 'room_status_screen.dart';
 
 class RoomDetailScreen extends StatefulWidget {
   const RoomDetailScreen({
@@ -27,7 +28,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   Room? _room;
   String? _error;
   bool _loading = true;
-  bool _updatingStatus = false;
 
   @override
   void initState() {
@@ -68,62 +68,17 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
   Future<void> _chooseStatus() async {
     final room = _room;
-    if (room == null || _updatingStatus) return;
-    final selected = await showModalBottomSheet<RoomStatus>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Cập nhật trạng thái',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Chọn trạng thái mới cho phòng ${room.roomNumber}.',
-                style: const TextStyle(color: Color(0xFF667085)),
-              ),
-              const SizedBox(height: 14),
-              ...RoomStatus.values.map(
-                (status) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    status == room.status
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                    color: status == room.status
-                        ? Theme.of(context).colorScheme.primary
-                        : const Color(0xFF98A2B3),
-                  ),
-                  title: RoomStatusChip(status: status),
-                  onTap: () => Navigator.pop(context, status),
-                ),
-              ),
-            ],
-          ),
-        ),
+    if (room == null) return;
+    final updated = await Navigator.push<Room>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            RoomStatusScreen(room: room, roomService: widget.roomService),
       ),
     );
-    if (selected == null || selected == room.status) return;
-
-    setState(() => _updatingStatus = true);
-    try {
-      final updated = await widget.roomService.updateStatus(room.id, selected);
-      if (!mounted) return;
-      setState(() => _room = updated);
-      _showMessage('Đã đổi trạng thái thành “${selected.label}”.');
-    } on ApiException catch (error) {
-      if (mounted) _showMessage(error.message, isError: true);
-    } finally {
-      if (mounted) setState(() => _updatingStatus = false);
-    }
+    if (updated == null || !mounted) return;
+    setState(() => _room = updated);
+    _showMessage('Đã đổi trạng thái thành “${updated.status.label}”.');
   }
 
   Future<void> _delete() async {
@@ -213,7 +168,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
               onRefresh: _load,
               child: _DetailContent(
                 room: _room!,
-                updatingStatus: _updatingStatus,
                 onChangeStatus: _chooseStatus,
               ),
             ),
@@ -222,14 +176,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 }
 
 class _DetailContent extends StatelessWidget {
-  const _DetailContent({
-    required this.room,
-    required this.updatingStatus,
-    required this.onChangeStatus,
-  });
+  const _DetailContent({required this.room, required this.onChangeStatus});
 
   final Room room;
-  final bool updatingStatus;
   final VoidCallback onChangeStatus;
 
   @override
@@ -244,14 +193,12 @@ class _DetailContent extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 720;
-                final image = RoomImage(
-                  imageUrl: room.imageUrl,
-                  width: double.infinity,
+                final image = RoomGallery(
+                  imageUrls: room.images,
                   height: wide ? 360 : 230,
                 );
                 final summary = _RoomSummary(
                   room: room,
-                  updatingStatus: updatingStatus,
                   onChangeStatus: onChangeStatus,
                 );
                 return Column(
@@ -274,6 +221,16 @@ class _DetailContent extends StatelessWidget {
                     _InfoCard(
                       title: 'Thông tin phòng',
                       children: [
+                        _InfoRow(
+                          icon: Icons.tag_outlined,
+                          label: 'Mã phòng',
+                          value: room.roomNumber,
+                        ),
+                        _InfoRow(
+                          icon: Icons.meeting_room_outlined,
+                          label: 'Tên phòng',
+                          value: room.roomName,
+                        ),
                         _InfoRow(
                           icon: Icons.layers_outlined,
                           label: 'Tầng',
@@ -340,14 +297,9 @@ class _DetailContent extends StatelessWidget {
 }
 
 class _RoomSummary extends StatelessWidget {
-  const _RoomSummary({
-    required this.room,
-    required this.updatingStatus,
-    required this.onChangeStatus,
-  });
+  const _RoomSummary({required this.room, required this.onChangeStatus});
 
   final Room room;
-  final bool updatingStatus;
   final VoidCallback onChangeStatus;
 
   @override
@@ -368,11 +320,16 @@ class _RoomSummary extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              room.roomNumber,
+              room.roomName,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w900,
                 color: const Color(0xFF17203A),
               ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Mã phòng: ${room.roomNumber}',
+              style: const TextStyle(color: Color(0xFF667085)),
             ),
             const SizedBox(height: 12),
             RoomStatusChip(status: room.status),
@@ -389,16 +346,8 @@ class _RoomSummary extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: updatingStatus ? null : onChangeStatus,
-                icon: updatingStatus
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.swap_horiz_rounded),
+                onPressed: onChangeStatus,
+                icon: const Icon(Icons.swap_horiz_rounded),
                 label: const Text('Cập nhật trạng thái'),
               ),
             ),

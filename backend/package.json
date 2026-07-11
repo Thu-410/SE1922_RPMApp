@@ -5,6 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "migrate:rooms": "node scripts/run-room-migration.js",
+    "seed:room-gallery": "node scripts/seed-room-gallery.js",
+    "verify:rooms": "node scripts/verify-room-api.js",
     "test": "node --test"
   },
   "keywords": [],

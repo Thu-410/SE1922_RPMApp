@@ -33,9 +33,18 @@ Server mặc định chạy tại `http://localhost:3000`.
 | `GET` | `/api/rooms/:id` | Chi tiết phòng |
 | `POST` | `/api/rooms` | Thêm phòng |
 | `PUT` | `/api/rooms/:id` | Sửa thông tin phòng |
-| `PATCH` | `/api/rooms/:id/status` | Cập nhật trạng thái |
+| `PUT` | `/api/rooms/:id/status` | Cập nhật trạng thái |
 | `DELETE` | `/api/rooms/:id` | Xóa phòng |
 
 Trạng thái hợp lệ: `available`, `occupied`, `maintenance`, `inactive`.
+
+Payload tạo/sửa phòng hỗ trợ `room_number`, `room_name`, `floor`, `area`,
+`price`, `deposit`, `status`, `description` và `images` (mảng tối đa 10 URL).
+
+Nếu database đã được tạo từ phiên bản cũ, chạy một lần file
+`npm run migrate:rooms` trước khi khởi động backend mới.
+
+Có thể chạy `npm run seed:room-gallery` để thêm nhiều ảnh mẫu cho 5 phòng
+trong dữ liệu demo mà không ghi đè những phòng đã có ảnh.
 
 Chạy test bằng `npm test`.

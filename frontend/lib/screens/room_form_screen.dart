@@ -19,12 +19,13 @@ class RoomFormScreen extends StatefulWidget {
 class _RoomFormScreenState extends State<RoomFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _numberController;
+  late final TextEditingController _nameController;
   late final TextEditingController _floorController;
   late final TextEditingController _areaController;
   late final TextEditingController _priceController;
   late final TextEditingController _depositController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _imageController;
+  late final List<TextEditingController> _imageControllers;
   late RoomStatus _status;
   bool _saving = false;
 
@@ -33,6 +34,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
     super.initState();
     final room = widget.room;
     _numberController = TextEditingController(text: room?.roomNumber);
+    _nameController = TextEditingController(text: room?.roomName);
     _floorController = TextEditingController(text: '${room?.floor ?? 1}');
     _areaController = TextEditingController(text: _numberText(room?.area));
     _priceController = TextEditingController(text: _numberText(room?.price));
@@ -40,7 +42,9 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
       text: _numberText(room?.deposit),
     );
     _descriptionController = TextEditingController(text: room?.description);
-    _imageController = TextEditingController(text: room?.imageUrl);
+    _imageControllers = (room?.images.isNotEmpty == true ? room!.images : [''])
+        .map((image) => TextEditingController(text: image))
+        .toList();
     _status = room?.status ?? RoomStatus.available;
   }
 
@@ -54,13 +58,31 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
   @override
   void dispose() {
     _numberController.dispose();
+    _nameController.dispose();
     _floorController.dispose();
     _areaController.dispose();
     _priceController.dispose();
     _depositController.dispose();
     _descriptionController.dispose();
-    _imageController.dispose();
+    for (final controller in _imageControllers) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  void _addImageField() {
+    if (_imageControllers.length >= 10) return;
+    setState(() => _imageControllers.add(TextEditingController()));
+  }
+
+  void _removeImageField(int index) {
+    if (_imageControllers.length == 1) {
+      _imageControllers.first.clear();
+      return;
+    }
+    final controller = _imageControllers.removeAt(index);
+    controller.dispose();
+    setState(() {});
   }
 
   Future<void> _save() async {
@@ -70,13 +92,17 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
     setState(() => _saving = true);
     final input = RoomInput(
       roomNumber: _numberController.text,
+      roomName: _nameController.text,
       floor: int.parse(_floorController.text),
       area: double.parse(_areaController.text.replaceAll(',', '.')),
       price: double.parse(_priceController.text.replaceAll(',', '.')),
       deposit: double.parse(_depositController.text.replaceAll(',', '.')),
       status: _status,
       description: _descriptionController.text,
-      imageUrl: _imageController.text,
+      images: _imageControllers
+          .map((controller) => controller.text.trim())
+          .where((image) => image.isNotEmpty)
+          .toList(),
     );
 
     try {
@@ -120,8 +146,10 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
   String? _imageUrl(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     final uri = Uri.tryParse(value.trim());
-    if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
-      return 'URL hình ảnh không hợp lệ';
+    if (uri == null ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return 'URL ảnh phải bắt đầu bằng http:// hoặc https://';
     }
     if (value.trim().length > 500) return 'URL không được vượt quá 500 ký tự';
     return null;
@@ -136,7 +164,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
+            constraints: const BoxConstraints(maxWidth: 800),
             child: Form(
               key: _formKey,
               child: ListView(
@@ -159,19 +187,38 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                           TextFormField(
                             controller: _numberController,
                             validator: (value) {
-                              final required = _requiredText(value);
-                              if (required != null) return required;
-                              if (value!.trim().length > 50) {
-                                return 'Số phòng không được vượt quá 50 ký tự';
-                              }
-                              return null;
+                              final error = _requiredText(value);
+                              if (error != null) return error;
+                              return value!.trim().length > 50
+                                  ? 'Mã phòng không được vượt quá 50 ký tự'
+                                  : null;
                             },
                             decoration: const InputDecoration(
-                              labelText: 'Số phòng *',
-                              hintText: 'Ví dụ: A101',
+                              labelText: 'Mã phòng *',
+                              hintText: 'Ví dụ: P101',
+                              prefixIcon: Icon(Icons.tag_outlined),
+                            ),
+                          ),
+                          TextFormField(
+                            controller: _nameController,
+                            validator: (value) {
+                              final error = _requiredText(value);
+                              if (error != null) return error;
+                              return value!.trim().length > 150
+                                  ? 'Tên phòng không được vượt quá 150 ký tự'
+                                  : null;
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Tên phòng *',
+                              hintText: 'Ví dụ: Phòng ban công P101',
                               prefixIcon: Icon(Icons.meeting_room_outlined),
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _ResponsiveFields(
+                        children: [
                           TextFormField(
                             controller: _floorController,
                             validator: _positiveInt,
@@ -184,11 +231,6 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                               prefixIcon: Icon(Icons.layers_outlined),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _ResponsiveFields(
-                        children: [
                           TextFormField(
                             controller: _areaController,
                             validator: _nonNegativeNumber,
@@ -200,27 +242,26 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                               prefixIcon: Icon(Icons.square_foot_outlined),
                             ),
                           ),
-                          DropdownButtonFormField<RoomStatus>(
-                            initialValue: _status,
-                            decoration: const InputDecoration(
-                              labelText: 'Trạng thái *',
-                              prefixIcon: Icon(Icons.flag_outlined),
-                            ),
-                            items: RoomStatus.values
-                                .map(
-                                  (status) => DropdownMenuItem(
-                                    value: status,
-                                    child: Text(status.label),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _status = value);
-                              }
-                            },
-                          ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<RoomStatus>(
+                        initialValue: _status,
+                        decoration: const InputDecoration(
+                          labelText: 'Trạng thái *',
+                          prefixIcon: Icon(Icons.flag_outlined),
+                        ),
+                        items: RoomStatus.values
+                            .map(
+                              (status) => DropdownMenuItem(
+                                value: status,
+                                child: Text(status.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) setState(() => _status = value);
+                        },
                       ),
                     ],
                   ),
@@ -237,7 +278,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                               decimal: true,
                             ),
                             decoration: const InputDecoration(
-                              labelText: 'Giá phòng (VNĐ/tháng) *',
+                              labelText: 'Giá thuê (VNĐ/tháng) *',
                               prefixIcon: Icon(Icons.payments_outlined),
                             ),
                           ),
@@ -260,27 +301,72 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                   ),
                   const SizedBox(height: 18),
                   _Section(
-                    title: 'Thông tin bổ sung',
+                    title: 'Ảnh chi tiết',
                     children: [
-                      TextFormField(
-                        controller: _imageController,
-                        validator: _imageUrl,
-                        keyboardType: TextInputType.url,
-                        decoration: const InputDecoration(
-                          labelText: 'URL hình ảnh',
-                          hintText: 'https://example.com/room.jpg',
-                          prefixIcon: Icon(Icons.image_outlined),
+                      const Text(
+                        'Thêm tối đa 10 URL ảnh. Ảnh đầu tiên là ảnh đại diện.',
+                        style: TextStyle(color: Color(0xFF667085)),
+                      ),
+                      const SizedBox(height: 14),
+                      for (
+                        var index = 0;
+                        index < _imageControllers.length;
+                        index++
+                      ) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _imageControllers[index],
+                                validator: _imageUrl,
+                                keyboardType: TextInputType.url,
+                                decoration: InputDecoration(
+                                  labelText: 'Ảnh ${index + 1}',
+                                  hintText: 'https://example.com/room.jpg',
+                                  prefixIcon: const Icon(Icons.image_outlined),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              tooltip: 'Xóa ảnh này',
+                              onPressed: () => _removeImageField(index),
+                              icon: const Icon(Icons.remove_circle_outline),
+                              color: Colors.red.shade600,
+                            ),
+                          ],
+                        ),
+                        if (index < _imageControllers.length - 1)
+                          const SizedBox(height: 12),
+                      ],
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: _imageControllers.length >= 10
+                              ? null
+                              : _addImageField,
+                          icon: const Icon(Icons.add_photo_alternate_outlined),
+                          label: Text(
+                            'Thêm ảnh (${_imageControllers.length}/10)',
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _Section(
+                    title: 'Mô tả phòng',
+                    children: [
                       TextFormField(
                         controller: _descriptionController,
-                        minLines: 4,
-                        maxLines: 7,
+                        minLines: 5,
+                        maxLines: 9,
                         decoration: const InputDecoration(
                           labelText: 'Mô tả',
                           hintText:
-                              'Mô tả tiện nghi, vị trí hoặc ghi chú về phòng...',
+                              'Mô tả tiện nghi, vị trí, nội thất hoặc ghi chú về phòng...',
                           alignLabelWithHint: true,
                         ),
                       ),

@@ -72,7 +72,7 @@ class RoomApiService {
 
   Future<Room> updateStatus(int id, RoomStatus status) async {
     final response = await _request(
-      () => _client.patch(
+      () => _client.put(
         _uri('/$id/status'),
         headers: _headers,
         body: jsonEncode({'status': status.value}),

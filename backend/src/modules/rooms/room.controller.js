@@ -3,13 +3,15 @@ const roomService = require("./room.service");
 const ROOM_STATUSES = ["available", "occupied", "maintenance", "inactive"];
 const ROOM_FIELDS = [
     "room_number",
+    "room_name",
     "floor",
     "area",
     "price",
     "deposit",
     "status",
     "description",
-    "image_url"
+    "image_url",
+    "images"
 ];
 
 class HttpError extends Error {
@@ -39,6 +41,38 @@ const parseNonNegativeNumber = (value, fieldName) => {
     return number;
 };
 
+const normalizeImages = (value) => {
+    if (!Array.isArray(value)) {
+        throw new HttpError(400, "Danh sách ảnh phòng phải là một mảng.");
+    }
+    if (value.length > 10) {
+        throw new HttpError(400, "Mỗi phòng được phép có tối đa 10 ảnh.");
+    }
+
+    const images = [];
+    for (const rawImage of value) {
+        if (typeof rawImage !== "string" || !rawImage.trim()) {
+            throw new HttpError(400, "Mỗi ảnh phòng phải là một URL hợp lệ.");
+        }
+        const image = rawImage.trim();
+        if (image.length > 500) {
+            throw new HttpError(400, "URL ảnh không được vượt quá 500 ký tự.");
+        }
+
+        let url;
+        try {
+            url = new URL(image);
+        } catch (_) {
+            throw new HttpError(400, "URL ảnh phòng không hợp lệ.");
+        }
+        if (!["http:", "https:"].includes(url.protocol)) {
+            throw new HttpError(400, "URL ảnh phòng phải dùng HTTP hoặc HTTPS.");
+        }
+        if (!images.includes(image)) images.push(image);
+    }
+    return images;
+};
+
 const normalizeRoomPayload = (body, { partial = false } = {}) => {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
         throw new HttpError(400, "Dữ liệu phòng không hợp lệ.");
@@ -55,6 +89,20 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
         payload.room_number = body.room_number.trim();
         if (payload.room_number.length > 50) {
             throw new HttpError(400, "Số phòng không được vượt quá 50 ký tự.");
+        }
+    }
+
+    if (!partial || has("room_name")) {
+        const defaultName = payload.room_number
+            ? `Phòng ${payload.room_number}`
+            : undefined;
+        const value = partial ? body.room_name : body.room_name ?? defaultName;
+        if (typeof value !== "string" || !value.trim()) {
+            throw new HttpError(400, "Tên phòng là bắt buộc.");
+        }
+        payload.room_name = value.trim();
+        if (payload.room_name.length > 150) {
+            throw new HttpError(400, "Tên phòng không được vượt quá 150 ký tự.");
         }
     }
 
@@ -90,7 +138,7 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
         payload.status = status;
     }
 
-    for (const field of ["description", "image_url"]) {
+    for (const field of ["description"]) {
         if (!partial || has(field)) {
             const value = partial ? body[field] : body[field] ?? null;
             if (value !== null && typeof value !== "string") {
@@ -100,8 +148,12 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
         }
     }
 
-    if (payload.image_url && payload.image_url.length > 500) {
-        throw new HttpError(400, "image_url không được vượt quá 500 ký tự.");
+    if (!partial || has("images") || has("image_url")) {
+        let rawImages = has("images") ? body.images : [];
+        if (!has("images") && typeof body.image_url === "string" && body.image_url.trim()) {
+            rawImages = [body.image_url];
+        }
+        payload.images = normalizeImages(rawImages);
     }
 
     if (partial && !ROOM_FIELDS.some((field) => has(field))) {
