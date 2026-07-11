@@ -1,17 +1,30 @@
-# orderfood
+# Flutter quản lý phòng
 
-A new Flutter project.
+Ứng dụng Flutter gồm các màn hình danh sách phòng, chi tiết phòng, thêm phòng và chỉnh sửa phòng. Ứng dụng hỗ trợ tìm kiếm, lọc trạng thái, xóa phòng và cập nhật nhanh trạng thái từ trang chi tiết.
 
-## Getting Started
+## Chạy project
 
-This project is a starting point for a Flutter application.
+Khởi động backend tại cổng `3000`, sau đó chạy:
 
-A few resources to get you started if this is your first Flutter project:
+```powershell
+flutter pub get
+flutter run
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Địa chỉ API mặc định:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Android emulator: `http://10.0.2.2:3000`
+- Web, Windows, macOS, Linux và iOS simulator: `http://localhost:3000`
+
+Khi chạy trên thiết bị thật hoặc backend ở máy khác, truyền địa chỉ bằng `API_BASE_URL`:
+
+```powershell
+flutter run --dart-define=API_BASE_URL=http://192.168.1.10:3000
+```
+
+Kiểm tra code bằng:
+
+```powershell
+flutter analyze
+flutter test
+```
