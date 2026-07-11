@@ -51,7 +51,7 @@ const run = async () => {
             `INSERT INTO utility_readings
                 (room_id, month, year, note)
              VALUES (?, 1, 2099, ?)`,
-            [roomId, `Chỉ số điện nước của phòng ${roomNumber}`]
+            [roomId, `Dữ liệu của Phòng kiểm thử ${roomNumber}`]
         );
 
         const detail = await request(`/${roomId}`);
@@ -90,14 +90,23 @@ const run = async () => {
             "Request đến chậm đã ghi đè tên phòng bằng mã cũ."
         );
 
+        const renamed = await request(`/${roomId}`, {
+            method: "PUT",
+            body: JSON.stringify({ room_name: "Căn hộ kiểm thử mới" })
+        });
+        assert(
+            renamed.data.room_name === "Căn hộ kiểm thử mới",
+            "Đổi tên phòng thất bại."
+        );
+
         const [utilityRows] = await pool.execute(
             "SELECT note FROM utility_readings WHERE room_id = ? LIMIT 1",
             [roomId]
         );
         assert(
-            utilityRows[0].note.includes(`${roomNumber}-EDIT`) &&
-                !utilityRows[0].note.includes(`${roomNumber} `),
-            "Dữ liệu liên quan chưa đồng bộ mã phòng mới."
+            utilityRows[0].note.includes("Căn hộ kiểm thử mới") &&
+                !utilityRows[0].note.includes("Phòng kiểm thử"),
+            `Dữ liệu liên quan chưa đồng bộ: ${utilityRows[0].note}`
         );
 
         const statusUpdated = await request(`/${roomId}/status`, {

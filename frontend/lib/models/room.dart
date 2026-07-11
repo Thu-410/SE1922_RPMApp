@@ -113,6 +113,7 @@ class RoomInput {
     required this.status,
     required this.images,
     this.description,
+    this.expectedUpdatedAt,
   });
 
   final String roomNumber;
@@ -124,6 +125,7 @@ class RoomInput {
   final RoomStatus status;
   final String? description;
   final List<String> images;
+  final DateTime? expectedUpdatedAt;
 
   Map<String, dynamic> toJson() => {
     'room_number': roomNumber.trim(),
@@ -138,6 +140,8 @@ class RoomInput {
         .map((image) => image.trim())
         .where((image) => image.isNotEmpty)
         .toList(),
+    if (expectedUpdatedAt != null)
+      'expected_updated_at': expectedUpdatedAt!.toUtc().toIso8601String(),
   };
 
   static String? _nullable(String? value) {

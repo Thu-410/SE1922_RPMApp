@@ -112,6 +112,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
       deposit: double.parse(_depositController.text.replaceAll(',', '.')),
       status: _status,
       description: _descriptionController.text,
+      expectedUpdatedAt: widget.room?.updatedAt,
       images: _imageControllers
           .map((controller) => controller.text.trim())
           .where((image) => image.isNotEmpty)

@@ -11,7 +11,8 @@ const ROOM_FIELDS = [
     "status",
     "description",
     "image_url",
-    "images"
+    "images",
+    "expected_updated_at"
 ];
 
 class HttpError extends Error {
@@ -154,6 +155,16 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
             rawImages = [body.image_url];
         }
         payload.images = normalizeImages(rawImages);
+    }
+
+    if (partial && has("expected_updated_at")) {
+        if (
+            typeof body.expected_updated_at !== "string" ||
+            Number.isNaN(Date.parse(body.expected_updated_at))
+        ) {
+            throw new HttpError(400, "Thời điểm cập nhật phòng không hợp lệ.");
+        }
+        payload.expected_updated_at = body.expected_updated_at;
     }
 
     if (partial && !ROOM_FIELDS.some((field) => has(field))) {
