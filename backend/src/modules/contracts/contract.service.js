@@ -43,13 +43,11 @@ const getContractsByTenant = (tenantId, callback) => {
   conn.query(sql, [tenantId], callback);
 };
 
-// Check phòng có hợp đồng active nào chưa (để chặn trùng)
 const checkRoomHasActiveContract = (roomId, callback) => {
   const sql = `SELECT COUNT(*) AS total FROM contracts WHERE room_id = ? AND status = 'active'`;
   conn.query(sql, [roomId], callback);
 };
 
-// Tạo hợp đồng: insert contract + update room + update tenant (transaction)
 const createContract = (data, callback) => {
   conn.beginTransaction((err) => {
     if (err) return callback(err);
@@ -75,7 +73,6 @@ const createContract = (data, callback) => {
 
       const contractId = result.insertId;
 
-      // Nếu tạo với status active thì mới đổi trạng thái phòng/tenant ngay
       if ((data.status ?? 'active') !== 'active') {
         return conn.commit((err) => {
           if (err) return conn.rollback(() => callback(err));
@@ -101,13 +98,11 @@ const createContract = (data, callback) => {
   });
 };
 
-// Gia hạn hợp đồng: chỉ đổi end_date
 const extendContract = (id, newEndDate, callback) => {
   const sql = `UPDATE contracts SET end_date = ? WHERE id = ?`;
   conn.query(sql, [newEndDate, id], callback);
 };
 
-// Kết thúc hợp đồng: update contract + room + tenant (transaction)
 const terminateContract = (id, callback) => {
   conn.beginTransaction((err) => {
     if (err) return callback(err);
