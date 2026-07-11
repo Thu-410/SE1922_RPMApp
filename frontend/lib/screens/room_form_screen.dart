@@ -251,6 +251,9 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
+                            inputFormatters: const [
+                              _DecimalInputFormatter(decimalPlaces: 2),
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'Diện tích (m²) *',
                               prefixIcon: Icon(Icons.square_foot_outlined),
@@ -288,9 +291,10 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                           TextFormField(
                             controller: _priceController,
                             validator: _nonNegativeNumber,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'Giá thuê (VNĐ/tháng) *',
                               prefixIcon: Icon(Icons.payments_outlined),
@@ -299,9 +303,10 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                           TextFormField(
                             controller: _depositController,
                             validator: _nonNegativeNumber,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'Tiền cọc (VNĐ) *',
                               prefixIcon: Icon(
@@ -421,6 +426,22 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
         ),
       ),
     );
+  }
+}
+
+class _DecimalInputFormatter extends TextInputFormatter {
+  const _DecimalInputFormatter({required this.decimalPlaces});
+
+  final int decimalPlaces;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    final pattern = RegExp('^\\d*(?:[.,]\\d{0,$decimalPlaces})?\$');
+    return pattern.hasMatch(newValue.text) ? newValue : oldValue;
   }
 }
 
