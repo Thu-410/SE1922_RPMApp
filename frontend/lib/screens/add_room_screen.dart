@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/room.dart';
 import '../services/room_api_service.dart';
 import 'room_form_screen.dart';
 
@@ -14,4 +13,3 @@ class AddRoomScreen extends StatelessWidget {
     return RoomFormScreen(roomService: roomService);
   }
 }
-
