@@ -320,7 +320,7 @@ class _RoomSummary extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              room.roomName,
+              'Phòng ${room.roomNumber}',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w900,
                 color: const Color(0xFF17203A),
@@ -328,7 +328,7 @@ class _RoomSummary extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Mã phòng: ${room.roomNumber}',
+              room.roomName,
               style: const TextStyle(color: Color(0xFF667085)),
             ),
             const SizedBox(height: 12),

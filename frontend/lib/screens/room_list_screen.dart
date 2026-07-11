@@ -347,7 +347,7 @@ class _RoomCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            room.roomName,
+                            'Phòng ${room.roomNumber}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleMedium
@@ -362,7 +362,7 @@ class _RoomCard extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      'Mã phòng: ${room.roomNumber}',
+                      room.roomName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

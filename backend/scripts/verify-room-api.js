@@ -31,7 +31,7 @@ const run = async () => {
             method: "POST",
             body: JSON.stringify({
                 room_number: roomNumber,
-                room_name: "Phòng kiểm thử thư viện ảnh",
+                room_name: `Phòng kiểm thử ${roomNumber}`,
                 floor: 4,
                 area: 32.5,
                 price: 4100000,
@@ -47,6 +47,13 @@ const run = async () => {
         roomId = created.data.id;
         assert(created.data.images.length === 2, "Tạo phòng chưa lưu đủ ảnh.");
 
+        await pool.execute(
+            `INSERT INTO utility_readings
+                (room_id, month, year, note)
+             VALUES (?, 1, 2099, ?)`,
+            [roomId, `Chỉ số điện nước của phòng ${roomNumber}`]
+        );
+
         const detail = await request(`/${roomId}`);
         assert(detail.data.room_name, "Chi tiết phòng thiếu tên phòng.");
         assert(detail.data.images.length === 2, "Chi tiết phòng thiếu ảnh.");
@@ -54,13 +61,44 @@ const run = async () => {
         const updated = await request(`/${roomId}`, {
             method: "PUT",
             body: JSON.stringify({
+                room_number: `${roomNumber}-EDIT`,
                 price: 4300000,
                 area: 34,
                 floor: 5,
                 description: "Mô tả đã được cập nhật qua PUT."
             })
         });
+        assert(
+            updated.data.room_number === `${roomNumber}-EDIT`,
+            "Cập nhật mã phòng thất bại."
+        );
+        assert(
+            updated.data.room_name === `Phòng kiểm thử ${roomNumber}-EDIT`,
+            "Tên phòng không tự đồng bộ theo mã mới."
+        );
         assert(updated.data.price === 4300000, "Cập nhật giá thuê thất bại.");
+
+        const delayedUpdate = await request(`/${roomId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+                room_number: `${roomNumber}-EDIT`,
+                room_name: `Phòng kiểm thử ${roomNumber}`
+            })
+        });
+        assert(
+            delayedUpdate.data.room_name === `Phòng kiểm thử ${roomNumber}-EDIT`,
+            "Request đến chậm đã ghi đè tên phòng bằng mã cũ."
+        );
+
+        const [utilityRows] = await pool.execute(
+            "SELECT note FROM utility_readings WHERE room_id = ? LIMIT 1",
+            [roomId]
+        );
+        assert(
+            utilityRows[0].note.includes(`${roomNumber}-EDIT`) &&
+                !utilityRows[0].note.includes(`${roomNumber} `),
+            "Dữ liệu liên quan chưa đồng bộ mã phòng mới."
+        );
 
         const statusUpdated = await request(`/${roomId}/status`, {
             method: "PUT",

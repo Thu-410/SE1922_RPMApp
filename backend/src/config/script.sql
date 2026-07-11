@@ -80,6 +80,21 @@ CREATE TABLE room_images (
 
 CREATE INDEX idx_room_images_room_id ON room_images(room_id);
 
+-- Lịch sử mã phòng để xử lý request cũ/đến chậm và đồng bộ dữ liệu liên quan
+CREATE TABLE room_number_history (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  room_id INT NOT NULL,
+  room_number VARCHAR(50) NOT NULL,
+  changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_room_number_history_room
+    FOREIGN KEY (room_id) REFERENCES rooms(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+  UNIQUE KEY uq_room_number_history (room_id, room_number)
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_room_number_history_room_id ON room_number_history(room_id);
+
 -- =========================================================
 -- 4. TENANTS
 -- status: active = đang thuê, left = đã rời đi

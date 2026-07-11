@@ -90,9 +90,22 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
+    final roomNumber = _numberController.text.trim();
+    var roomName = _nameController.text.trim();
+    final oldRoomNumber = widget.room?.roomNumber;
+
+    // Khi tên hiện tại có chứa mã cũ, tự đồng bộ phần mã trong tên để
+    // người dùng không thấy tiêu đề cũ sau khi chỉ sửa mã phòng.
+    if (oldRoomNumber != null &&
+        oldRoomNumber != roomNumber &&
+        roomName.contains(oldRoomNumber)) {
+      roomName = roomName.replaceAll(oldRoomNumber, roomNumber);
+      _nameController.text = roomName;
+    }
+
     final input = RoomInput(
-      roomNumber: _numberController.text,
-      roomName: _nameController.text,
+      roomNumber: roomNumber,
+      roomName: roomName,
       floor: int.parse(_floorController.text),
       area: double.parse(_areaController.text.replaceAll(',', '.')),
       price: double.parse(_priceController.text.replaceAll(',', '.')),

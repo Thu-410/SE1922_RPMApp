@@ -69,6 +69,133 @@ const insertImages = async (executor, roomId, images) => {
     );
 };
 
+const replaceRelatedRoomReference = async (
+    executor,
+    roomId,
+    oldRoomNumber,
+    newRoomNumber
+) => {
+    const likeOldNumber = `%${oldRoomNumber}%`;
+    const updates = [
+        [
+            `UPDATE contracts
+             SET note = REPLACE(note, ?, ?)
+             WHERE room_id = ? AND note LIKE ?`,
+            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
+        ],
+        [
+            `UPDATE utility_readings
+             SET note = REPLACE(note, ?, ?)
+             WHERE room_id = ? AND note LIKE ?`,
+            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
+        ],
+        [
+            `UPDATE invoices
+             SET note = REPLACE(note, ?, ?)
+             WHERE room_id = ? AND note LIKE ?`,
+            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
+        ],
+        [
+            `UPDATE invoice_details AS detail
+             JOIN invoices AS invoice ON invoice.id = detail.invoice_id
+             SET detail.item_name = REPLACE(detail.item_name, ?, ?),
+                 detail.note = CASE
+                   WHEN detail.note IS NULL THEN NULL
+                   ELSE REPLACE(detail.note, ?, ?)
+                 END
+             WHERE invoice.room_id = ?
+               AND (detail.item_name LIKE ? OR detail.note LIKE ?)`,
+            [
+                oldRoomNumber,
+                newRoomNumber,
+                oldRoomNumber,
+                newRoomNumber,
+                roomId,
+                likeOldNumber,
+                likeOldNumber
+            ]
+        ],
+        [
+            `UPDATE payments AS payment
+             JOIN invoices AS invoice ON invoice.id = payment.invoice_id
+             SET payment.note = REPLACE(payment.note, ?, ?)
+             WHERE invoice.room_id = ? AND payment.note LIKE ?`,
+            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
+        ],
+        [
+            `UPDATE maintenance_requests
+             SET title = REPLACE(title, ?, ?),
+                 description = REPLACE(description, ?, ?),
+                 manager_note = CASE
+                   WHEN manager_note IS NULL THEN NULL
+                   ELSE REPLACE(manager_note, ?, ?)
+                 END
+             WHERE room_id = ?
+               AND (
+                 title LIKE ? OR description LIKE ? OR manager_note LIKE ?
+               )`,
+            [
+                oldRoomNumber,
+                newRoomNumber,
+                oldRoomNumber,
+                newRoomNumber,
+                oldRoomNumber,
+                newRoomNumber,
+                roomId,
+                likeOldNumber,
+                likeOldNumber,
+                likeOldNumber
+            ]
+        ],
+        [
+            `UPDATE notifications AS notification
+             JOIN invoices AS invoice
+               ON notification.related_type = 'invoice'
+              AND notification.related_id = invoice.id
+             SET notification.title = REPLACE(notification.title, ?, ?),
+                 notification.content = REPLACE(notification.content, ?, ?)
+             WHERE invoice.room_id = ?
+               AND (
+                 notification.title LIKE ? OR notification.content LIKE ?
+               )`,
+            [
+                oldRoomNumber,
+                newRoomNumber,
+                oldRoomNumber,
+                newRoomNumber,
+                roomId,
+                likeOldNumber,
+                likeOldNumber
+            ]
+        ],
+        [
+            `UPDATE notifications AS notification
+             JOIN maintenance_requests AS request
+               ON notification.related_type = 'maintenance_request'
+              AND notification.related_id = request.id
+             SET notification.title = REPLACE(notification.title, ?, ?),
+                 notification.content = REPLACE(notification.content, ?, ?)
+             WHERE request.room_id = ?
+               AND (
+                 notification.title LIKE ? OR notification.content LIKE ?
+               )`,
+            [
+                oldRoomNumber,
+                newRoomNumber,
+                oldRoomNumber,
+                newRoomNumber,
+                roomId,
+                likeOldNumber,
+                likeOldNumber
+            ]
+        ]
+    ];
+
+    for (const [query, params] of updates) {
+        await executor.execute(query, params);
+    }
+};
+
 const getRooms = async ({ status } = {}) => {
     let query = `SELECT ${ROOM_COLUMNS} FROM rooms`;
     const params = [];
@@ -134,7 +261,10 @@ const updateRoom = async (id, changes) => {
     try {
         await connection.beginTransaction();
         const [existingRows] = await connection.execute(
-            "SELECT id FROM rooms WHERE id = ? FOR UPDATE",
+            `SELECT id, room_number, room_name, description, updated_at
+             FROM rooms
+             WHERE id = ?
+             FOR UPDATE`,
             [id]
         );
 
@@ -143,11 +273,84 @@ const updateRoom = async (id, changes) => {
             return null;
         }
 
+        const existingRoom = existingRows[0];
         const scalarChanges = { ...changes };
         delete scalarChanges.images;
+        delete scalarChanges.expected_updated_at;
+
+        if (changes.expected_updated_at) {
+            const expectedTime = new Date(changes.expected_updated_at).getTime();
+            const currentTime = new Date(existingRoom.updated_at).getTime();
+            if (expectedTime !== currentTime) {
+                const conflict = new Error(
+                    "Phòng đã được cập nhật ở màn hình khác. Vui lòng tải lại dữ liệu."
+                );
+                conflict.statusCode = 409;
+                throw conflict;
+            }
+        }
+
+        const [historyRows] = await connection.execute(
+            `SELECT room_number
+             FROM room_number_history
+             WHERE room_id = ?`,
+            [id]
+        );
+        const knownRoomNumbers = [
+            existingRoom.room_number,
+            ...historyRows.map((row) => row.room_number)
+        ].sort((left, right) => right.length - left.length);
+
+        const effectiveRoomNumber =
+            scalarChanges.room_number ?? existingRoom.room_number;
+        const roomNumberChanged =
+            effectiveRoomNumber !== existingRoom.room_number;
+
+        const replaceKnownRoomNumbers = (value) => {
+            let normalized = value;
+            for (const knownNumber of knownRoomNumbers) {
+                if (knownNumber !== effectiveRoomNumber && normalized?.includes(knownNumber)) {
+                    normalized = normalized.replaceAll(knownNumber, effectiveRoomNumber);
+                }
+            }
+            return normalized;
+        };
+
+        if (roomNumberChanged || scalarChanges.room_name !== undefined) {
+            scalarChanges.room_name = replaceKnownRoomNumbers(
+                scalarChanges.room_name ?? existingRoom.room_name
+            );
+        }
+
+        const effectiveRoomName =
+            scalarChanges.room_name ?? existingRoom.room_name;
+        const roomNameChanged = effectiveRoomName !== existingRoom.room_name;
+
+        if (
+            roomNumberChanged ||
+            roomNameChanged ||
+            scalarChanges.description !== undefined
+        ) {
+            let description = scalarChanges.description ?? existingRoom.description;
+            if (roomNameChanged && description?.includes(existingRoom.room_name)) {
+                description = description.replaceAll(
+                    existingRoom.room_name,
+                    effectiveRoomName
+                );
+            }
+            scalarChanges.description = replaceKnownRoomNumbers(description);
+        }
 
         if (Object.prototype.hasOwnProperty.call(changes, "images")) {
             scalarChanges.image_url = changes.images[0] || null;
+        }
+
+        if (roomNumberChanged) {
+            await connection.execute(
+                `INSERT IGNORE INTO room_number_history (room_id, room_number)
+                 VALUES (?, ?)`,
+                [id, existingRoom.room_number]
+            );
         }
 
         const fields = UPDATABLE_FIELDS.filter((field) =>
@@ -166,6 +369,27 @@ const updateRoom = async (id, changes) => {
         if (Object.prototype.hasOwnProperty.call(changes, "images")) {
             await connection.execute("DELETE FROM room_images WHERE room_id = ?", [id]);
             await insertImages(connection, id, changes.images);
+        }
+
+        if (roomNameChanged) {
+            await replaceRelatedRoomReference(
+                connection,
+                id,
+                existingRoom.room_name,
+                effectiveRoomName
+            );
+        }
+
+        if (roomNumberChanged) {
+            for (const knownRoomNumber of knownRoomNumbers) {
+                if (knownRoomNumber === effectiveRoomNumber) continue;
+                await replaceRelatedRoomReference(
+                    connection,
+                    id,
+                    knownRoomNumber,
+                    effectiveRoomNumber
+                );
+            }
         }
 
         await connection.commit();
