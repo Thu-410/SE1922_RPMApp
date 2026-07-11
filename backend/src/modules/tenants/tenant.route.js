@@ -3,10 +3,10 @@ const router = express.Router();
 const tenantController = require('./tenant.controller');
 
 router.get('/', tenantController.getAllTenants);
-router.get('/', tenantController.getTenantsByRoom);
-router.get('/', tenantController.getTenantById);
-router.get('/', tenantController.createTenant);
-router.get('/', tenantController.updateTenant);
-router.get('/', tenantController.deleteTenant);
+router.get('/room/:roomId', tenantController.getTenantsByRoom);
+router.get('/:id', tenantController.getTenantById);
+router.post('/', tenantController.createTenant);
+router.put('/:id', tenantController.updateTenant);
+router.delete('/:id', tenantController.deleteTenant);
 
 module.exports = router;
