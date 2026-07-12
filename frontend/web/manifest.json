@@ -1,6 +1,6 @@
 {
-    "name": "orderfood",
-    "short_name": "orderfood",
+    "name": "RPM App",
+    "short_name": "RPM App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

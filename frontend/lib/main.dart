@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'features/welcome/screens/welcome_screen.dart';
+import 'screens/navigation/home_navigation_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,10 +12,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-
-      title: 'Order Food',
-
-      home: const WelcomeScreen(),
+      title: 'RPM App',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+      ),
+      home: const HomeNavigationScreen(),
     );
   }
 }
