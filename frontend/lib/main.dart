@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'features/welcome/screens/welcome_screen.dart';
+import 'screens/tenants/tenant_list_screen.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
 
       title: 'Order Food',
 
-      home: const WelcomeScreen(),
+      home: const TenantListScreen(),
     );
   }
 }
