@@ -28,3 +28,26 @@ Kiểm tra code bằng:
 flutter analyze
 flutter test
 ```
+
+## Điểm nối đăng nhập và phân quyền
+
+Sau khi có user đăng nhập, tạo quyền giao diện từ tên role và truyền token cho
+API phòng:
+
+```dart
+final permissions = RoomPermissions.fromRole(authUser.roleName);
+final roomService = RoomApiService(
+  headersProvider: () async => {
+    'Authorization': 'Bearer ${await tokenStorage.read()}',
+  },
+);
+
+RoomManagementApp(
+  roomService: roomService,
+  permissions: permissions,
+);
+```
+
+Nếu chưa truyền `permissions`, module giữ toàn quyền để chạy độc lập. Sau khi
+truyền role, các nút Thêm/Sửa/Xóa/Cập nhật trạng thái tự ẩn theo policy; backend
+vẫn là lớp kiểm tra quyền bắt buộc cuối cùng.

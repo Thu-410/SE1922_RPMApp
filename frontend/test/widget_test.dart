@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orderfood/main.dart';
 import 'package:orderfood/models/room.dart';
+import 'package:orderfood/models/room_permissions.dart';
 import 'package:orderfood/services/room_api_service.dart';
 
 class _FakeRoomApiService extends RoomApiService {
@@ -42,5 +43,32 @@ void main() {
     expect(room.status, RoomStatus.available);
     expect(room.images.length, 2);
     expect(room.imageUrl, 'https://example.com/room-1.jpg');
+  });
+
+  test('phân quyền giao diện phòng theo role', () {
+    final manager = RoomPermissions.fromRole('manager');
+    final staff = RoomPermissions.fromRole('staff');
+    final tenant = RoomPermissions.fromRole('tenant');
+
+    expect(manager.canCreate, isTrue);
+    expect(manager.canDelete, isTrue);
+    expect(staff.canView, isTrue);
+    expect(staff.canUpdateStatus, isTrue);
+    expect(staff.canEdit, isFalse);
+    expect(tenant.canView, isTrue);
+    expect(tenant.canUpdateStatus, isFalse);
+    expect(RoomPermissions.fromRole(null).canView, isFalse);
+  });
+
+  testWidgets('ẩn module phòng khi role không có quyền xem', (tester) async {
+    await tester.pumpWidget(
+      const RoomManagementApp(permissions: RoomPermissions.denied),
+    );
+
+    expect(
+      find.text('Bạn không có quyền xem danh sách phòng.'),
+      findsOneWidget,
+    );
+    expect(find.text('Quản lý phòng'), findsNothing);
   });
 }

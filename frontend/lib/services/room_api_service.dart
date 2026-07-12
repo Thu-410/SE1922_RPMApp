@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import '../core/api_config.dart';
 import '../models/room.dart';
+
+typedef RoomApiHeadersProvider = FutureOr<Map<String, String>> Function();
 
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
@@ -16,12 +19,18 @@ class ApiException implements Exception {
 }
 
 class RoomApiService {
-  RoomApiService({http.Client? client, String? baseUrl})
+  RoomApiService({http.Client? client, String? baseUrl, this.headersProvider})
     : _client = client ?? http.Client(),
       _baseUrl = (baseUrl ?? ApiConfig.baseUrl).replaceFirst(RegExp(r'/$'), '');
 
   final http.Client _client;
   final String _baseUrl;
+  final RoomApiHeadersProvider? headersProvider;
+
+  Future<Map<String, String>> _headers() async => {
+    'Content-Type': 'application/json',
+    ...?await headersProvider?.call(),
+  };
 
   Uri _uri([String path = '', Map<String, String>? query]) {
     final uri = Uri.parse('$_baseUrl/api/rooms$path');
@@ -29,9 +38,11 @@ class RoomApiService {
   }
 
   Future<List<Room>> getRooms({RoomStatus? status}) async {
+    final headers = await _headers();
     final response = await _request(
       () => _client.get(
         _uri('', status == null ? null : {'status': status.value}),
+        headers: headers,
       ),
     );
     final data = response['data'];
@@ -44,15 +55,19 @@ class RoomApiService {
   }
 
   Future<Room> getRoom(int id) async {
-    final response = await _request(() => _client.get(_uri('/$id')));
+    final headers = await _headers();
+    final response = await _request(
+      () => _client.get(_uri('/$id'), headers: headers),
+    );
     return _roomFromResponse(response);
   }
 
   Future<Room> createRoom(RoomInput input) async {
+    final headers = await _headers();
     final response = await _request(
       () => _client.post(
         _uri(),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode(input.toJson()),
       ),
     );
@@ -60,10 +75,11 @@ class RoomApiService {
   }
 
   Future<Room> updateRoom(int id, RoomInput input) async {
+    final headers = await _headers();
     final response = await _request(
       () => _client.put(
         _uri('/$id'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode(input.toJson()),
       ),
     );
@@ -71,10 +87,11 @@ class RoomApiService {
   }
 
   Future<Room> updateStatus(int id, RoomStatus status) async {
+    final headers = await _headers();
     final response = await _request(
       () => _client.put(
         _uri('/$id/status'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode({'status': status.value}),
       ),
     );
@@ -82,10 +99,9 @@ class RoomApiService {
   }
 
   Future<void> deleteRoom(int id) async {
-    await _request(() => _client.delete(_uri('/$id')));
+    final headers = await _headers();
+    await _request(() => _client.delete(_uri('/$id'), headers: headers));
   }
-
-  static const _headers = {'Content-Type': 'application/json'};
 
   Room _roomFromResponse(Map<String, dynamic> response) {
     final data = response['data'];

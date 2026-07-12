@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/formatters.dart';
 import '../models/room.dart';
+import '../models/room_permissions.dart';
 import '../services/room_api_service.dart';
 import '../widgets/room_gallery.dart';
 import '../widgets/room_status_chip.dart';
@@ -14,11 +15,13 @@ class RoomDetailScreen extends StatefulWidget {
     required this.roomId,
     required this.roomService,
     this.initialRoom,
+    this.permissions = RoomPermissions.unrestricted,
   });
 
   final int roomId;
   final RoomApiService roomService;
   final Room? initialRoom;
+  final RoomPermissions permissions;
 
   @override
   State<RoomDetailScreen> createState() => _RoomDetailScreenState();
@@ -52,6 +55,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   }
 
   Future<void> _edit() async {
+    if (!widget.permissions.canEdit) return;
     final room = _room;
     if (room == null) return;
     final updated = await Navigator.push<Room>(
@@ -67,6 +71,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   }
 
   Future<void> _chooseStatus() async {
+    if (!widget.permissions.canUpdateStatus) return;
     final room = _room;
     if (room == null) return;
     final updated = await Navigator.push<Room>(
@@ -82,6 +87,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   }
 
   Future<void> _delete() async {
+    if (!widget.permissions.canDelete) return;
     final room = _room;
     if (room == null) return;
     final confirmed = await showDialog<bool>(
@@ -132,28 +138,30 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         title: const Text('Chi tiết phòng'),
         actions: [
           if (_room != null) ...[
-            IconButton(
-              tooltip: 'Chỉnh sửa',
-              onPressed: _edit,
-              icon: const Icon(Icons.edit_outlined),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'delete') _delete();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline, color: Colors.red),
-                      SizedBox(width: 10),
-                      Text('Xóa phòng', style: TextStyle(color: Colors.red)),
-                    ],
+            if (widget.permissions.canEdit)
+              IconButton(
+                tooltip: 'Chỉnh sửa',
+                onPressed: _edit,
+                icon: const Icon(Icons.edit_outlined),
+              ),
+            if (widget.permissions.canDelete)
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'delete') _delete();
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, color: Colors.red),
+                        SizedBox(width: 10),
+                        Text('Xóa phòng', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ],
       ),
@@ -169,6 +177,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
               child: _DetailContent(
                 room: _room!,
                 onChangeStatus: _chooseStatus,
+                canUpdateStatus: widget.permissions.canUpdateStatus,
               ),
             ),
     );
@@ -176,10 +185,15 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 }
 
 class _DetailContent extends StatelessWidget {
-  const _DetailContent({required this.room, required this.onChangeStatus});
+  const _DetailContent({
+    required this.room,
+    required this.onChangeStatus,
+    required this.canUpdateStatus,
+  });
 
   final Room room;
   final VoidCallback onChangeStatus;
+  final bool canUpdateStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +214,7 @@ class _DetailContent extends StatelessWidget {
                 final summary = _RoomSummary(
                   room: room,
                   onChangeStatus: onChangeStatus,
+                  canUpdateStatus: canUpdateStatus,
                 );
                 return Column(
                   children: [
@@ -297,10 +312,15 @@ class _DetailContent extends StatelessWidget {
 }
 
 class _RoomSummary extends StatelessWidget {
-  const _RoomSummary({required this.room, required this.onChangeStatus});
+  const _RoomSummary({
+    required this.room,
+    required this.onChangeStatus,
+    required this.canUpdateStatus,
+  });
 
   final Room room;
   final VoidCallback onChangeStatus;
+  final bool canUpdateStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -342,15 +362,17 @@ class _RoomSummary extends StatelessWidget {
               ),
             ),
             const Text('/ tháng', style: TextStyle(color: Color(0xFF667085))),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onChangeStatus,
-                icon: const Icon(Icons.swap_horiz_rounded),
-                label: const Text('Cập nhật trạng thái'),
+            if (canUpdateStatus) ...[
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onChangeStatus,
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('Cập nhật trạng thái'),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

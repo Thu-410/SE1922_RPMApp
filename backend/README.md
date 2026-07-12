@@ -57,3 +57,27 @@ Với dữ liệu từng được sửa bằng phiên bản cũ, chạy `npm run
 để đồng bộ mã nằm cuối tên phòng theo `room_number` hiện tại.
 
 Chạy test bằng `npm test`.
+
+## Điểm nối phân quyền
+
+Module phòng không tự xử lý đăng nhập. Sau khi middleware auth được merge, chỉ
+cần gắn một trong các cấu trúc sau vào `req.user`:
+
+```js
+req.user = { id: userId };
+req.user = { role_id: roleId };
+req.user = { role_name: "manager" };
+req.user = { role: { name: "manager" } };
+```
+
+Nếu chỉ có `id` hoặc `role_id`, module phòng tự tra tên role từ bảng `users` và
+`roles`. Policy tập trung tại `src/modules/rooms/room.authorization.js`:
+
+- `manager`: xem, lọc, thêm, sửa, xóa và cập nhật trạng thái.
+- `staff`: xem, lọc, xem chi tiết và cập nhật trạng thái.
+- `tenant`: xem, lọc và xem chi tiết.
+
+Khi auth chưa được merge và chưa có `req.user`, API vẫn chạy để phát triển độc
+lập. Khi tích hợp hoàn tất, middleware auth chung nên chặn request chưa đăng
+nhập; hoặc đặt `AUTH_REQUIRED=true`/`ROOM_AUTH_REQUIRED=true` để module phòng tự
+trả `401` nếu thiếu `req.user`.

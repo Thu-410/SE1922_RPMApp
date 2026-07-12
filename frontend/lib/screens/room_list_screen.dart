@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/formatters.dart';
 import '../models/room.dart';
+import '../models/room_permissions.dart';
 import '../services/room_api_service.dart';
 import '../widgets/room_image.dart';
 import '../widgets/room_status_chip.dart';
@@ -9,9 +10,14 @@ import 'add_room_screen.dart';
 import 'room_detail_screen.dart';
 
 class RoomListScreen extends StatefulWidget {
-  const RoomListScreen({super.key, required this.roomService});
+  const RoomListScreen({
+    super.key,
+    required this.roomService,
+    this.permissions = RoomPermissions.unrestricted,
+  });
 
   final RoomApiService roomService;
+  final RoomPermissions permissions;
 
   @override
   State<RoomListScreen> createState() => _RoomListScreenState();
@@ -70,6 +76,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   Future<void> _addRoom() async {
+    if (!widget.permissions.canCreate) return;
     final created = await Navigator.push<Room>(
       context,
       MaterialPageRoute(
@@ -89,6 +96,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
           roomId: room.id,
           roomService: widget.roomService,
           initialRoom: room,
+          permissions: widget.permissions,
         ),
       ),
     );
@@ -149,11 +157,13 @@ class _RoomListScreenState extends State<RoomListScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addRoom,
-        icon: const Icon(Icons.add),
-        label: const Text('Thêm phòng'),
-      ),
+      floatingActionButton: widget.permissions.canCreate
+          ? FloatingActionButton.extended(
+              onPressed: _addRoom,
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm phòng'),
+            )
+          : null,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadRooms,
@@ -181,7 +191,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
                       setState(() => _query = '');
                       _setStatus(null);
                     },
-                    onAdd: _addRoom,
+                    onAdd: widget.permissions.canCreate ? _addRoom : null,
                   ),
                 )
               else
@@ -249,12 +259,14 @@ class _RoomListScreenState extends State<RoomListScreen> {
                   return Row(
                     children: [
                       Expanded(child: search),
-                      const SizedBox(width: 14),
-                      FilledButton.icon(
-                        onPressed: _addRoom,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Thêm phòng'),
-                      ),
+                      if (widget.permissions.canCreate) ...[
+                        const SizedBox(width: 14),
+                        FilledButton.icon(
+                          onPressed: _addRoom,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Thêm phòng'),
+                        ),
+                      ],
                     ],
                   );
                 },
@@ -481,12 +493,12 @@ class _EmptyRooms extends StatelessWidget {
   const _EmptyRooms({
     required this.hasFilter,
     required this.onClear,
-    required this.onAdd,
+    this.onAdd,
   });
 
   final bool hasFilter;
   final VoidCallback onClear;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -520,16 +532,22 @@ class _EmptyRooms extends StatelessWidget {
             Text(
               hasFilter
                   ? 'Thử thay đổi từ khóa hoặc bộ lọc trạng thái.'
+                  : onAdd == null
+                  ? 'Hiện chưa có phòng nào để hiển thị.'
                   : 'Hãy thêm phòng đầu tiên để bắt đầu quản lý.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFF667085)),
             ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: hasFilter ? onClear : onAdd,
-              icon: Icon(hasFilter ? Icons.filter_alt_off_outlined : Icons.add),
-              label: Text(hasFilter ? 'Xóa bộ lọc' : 'Thêm phòng'),
-            ),
+            if (hasFilter || onAdd != null) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: hasFilter ? onClear : onAdd,
+                icon: Icon(
+                  hasFilter ? Icons.filter_alt_off_outlined : Icons.add,
+                ),
+                label: Text(hasFilter ? 'Xóa bộ lọc' : 'Thêm phòng'),
+              ),
+            ],
           ],
         ),
       ),
