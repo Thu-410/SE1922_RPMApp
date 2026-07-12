@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/tenant_model.dart';
 import '../../services/tenant_service.dart';
 import 'add_tenant_screen.dart';
+import 'tenant_detail_screen.dart';
 
 class TenantListScreen extends StatefulWidget {
   const TenantListScreen({super.key});
@@ -56,13 +57,26 @@ class _TenantListScreenState extends State<TenantListScreen> {
                     '${tenant.phone} • ${tenant.roomNumber ?? "Chua co phong"}',
                   ),
                   trailing: Chip(
-                    label: Text(tenant.status == 'active' ? 'Dang thue' : 'Da roi'),
+                    label: Text(
+                      tenant.status == 'active' ? 'Dang thue' : 'Da roi',
+                    ),
                     backgroundColor: tenant.status == 'active'
                         ? Colors.green[100]
                         : Colors.grey[300],
                   ),
-                  onTap: () {
-                    // TODO: điều hướng sang TenantDetailScreen
+
+                  // TODO: điều hướng sang TenantDetailScreen
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            TenantDetailScreen(tenantId: tenant.id),
+                      ),
+                    );
+                    if (result == true) {
+                      _loadTenants(); //? reload list nếu có sửa/xóa
+                    }
                   },
                 );
               },
