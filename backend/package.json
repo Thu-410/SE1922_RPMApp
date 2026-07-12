@@ -1,18 +1,40 @@
 {
-  "name": "untitled1",
+  "name": "boarding-house-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Backend API for boarding house management app",
+  "main": "src/app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "node --test test/user.service.test.js test/error.middleware.test.js test/user.route.test.js test/auth-rate-limit.test.js test/cors.test.js test/controller-status.test.js test/validation-encoding.test.js",
+    "test:jest": "jest --coverage --runInBand"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "jest": {
+    "testMatch": ["<rootDir>/test-jest/**/*.test.js"],
+    "collectCoverageFrom": [
+      "src/modules/auth/**/*.js",
+      "src/modules/users/**/*.js",
+      "src/middlewares/**/*.js",
+      "src/utils/**/*.js"
+    ]
+  },
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.6",
-    "express": "^5.2.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.5.2",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.22.5"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.2.2"
   }
 }
