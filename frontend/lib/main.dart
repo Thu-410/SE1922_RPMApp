@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'screens/tenants/tenant_list_screen.dart';
+import 'screens/contracts/contract_list_screen.dart';
+
 
 
 void main() {
@@ -17,7 +19,7 @@ class MyApp extends StatelessWidget {
 
       title: 'Order Food',
 
-      home: const TenantListScreen(),
+      home: const ContractListScreen(),
     );
   }
 }
