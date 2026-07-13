@@ -47,14 +47,9 @@ bảo trì và thông báo. Các quan hệ dữ liệu dùng `room_id` nên vẫ
 Lịch sử mã được lưu theo `room_id` để request cũ/đến chậm không thể ghi đè
 tên phòng bằng mã trước đó.
 
-Nếu database đã được tạo từ phiên bản cũ, chạy một lần file
-`npm run migrate:rooms` trước khi khởi động backend mới.
-
-Có thể chạy `npm run seed:room-gallery` để thêm nhiều ảnh mẫu cho 5 phòng
-trong dữ liệu demo mà không ghi đè những phòng đã có ảnh.
-
-Với dữ liệu từng được sửa bằng phiên bản cũ, chạy `npm run repair:room-names`
-để đồng bộ mã nằm cuối tên phòng theo `room_number` hiện tại.
+Database tạo mới bằng `src/config/script.sql` đã gồm cấu trúc phòng và thư viện ảnh mẫu.
+Nếu nâng cấp database cũ, chạy lần lượt các file migration cần thiết trong
+`src/config` trực tiếp trên MySQL trước khi khởi động backend.
 
 Chạy test bằng `npm test`.
 
