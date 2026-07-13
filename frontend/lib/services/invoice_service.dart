@@ -6,7 +6,10 @@ class InvoiceService {
   final ApiClient _api;
 
   Future<List<Invoice>> getInvoices({int page = 1, int limit = 50}) async {
-    final response = await _api.get('/invoices', query: {'page': page, 'limit': limit});
+    final response = await _api.get(
+      '/invoices',
+      query: {'page': page, 'limit': limit},
+    );
     return (response['data'] as List<dynamic>)
         .map((item) => Invoice.fromJson(item as Map<String, dynamic>))
         .toList();
@@ -33,7 +36,10 @@ class InvoiceService {
   }
 
   Future<Invoice> cancelInvoice(int id, String reason) async {
-    final response = await _api.put('/invoices/$id/cancel', body: {'reason': reason});
+    final response = await _api.put(
+      '/invoices/$id/cancel',
+      body: {'reason': reason},
+    );
     return Invoice.fromJson(response['data'] as Map<String, dynamic>);
   }
 

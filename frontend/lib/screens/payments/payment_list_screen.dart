@@ -31,11 +31,19 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
     return FutureBuilder<List<Payment>>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) return ErrorView(message: snapshot.error.toString(), onRetry: () => setState(_reload));
+        if (snapshot.connectionState != ConnectionState.done)
+          return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError)
+          return ErrorView(
+            message: snapshot.error.toString(),
+            onRetry: () => setState(_reload),
+          );
         final payments = snapshot.data!;
         return RefreshIndicator(
-          onRefresh: () async { setState(_reload); await _future; },
+          onRefresh: () async {
+            setState(_reload);
+            await _future;
+          },
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             itemCount: payments.length,
@@ -44,9 +52,17 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
               final payment = payments[index];
               return Card(
                 child: ListTile(
-                  leading: const CircleAvatar(backgroundColor: Color(0xFFDCFCE7), child: Icon(Icons.check_rounded, color: Colors.green)),
-                  title: Text('${payment.roomNumber} · ${formatCurrency(payment.amount)}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${payment.tenantName}\n${formatDate(payment.paymentDate)} · ${payment.method}'),
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFDCFCE7),
+                    child: Icon(Icons.check_rounded, color: Colors.green),
+                  ),
+                  title: Text(
+                    '${payment.roomNumber} · ${formatCurrency(payment.amount)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${payment.tenantName}\n${formatDate(payment.paymentDate)} · ${payment.method}',
+                  ),
                   isThreeLine: true,
                 ),
               );

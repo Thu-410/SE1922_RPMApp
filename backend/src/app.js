@@ -11,6 +11,8 @@ const invoiceRouter = require('./modules/invoices/invoice.route');
 const paymentRouter = require('./modules/payments/payment.route');
 const tenantInvoiceRouter = require('./modules/invoices/tenant-invoice.route');
 const authenticate = require('./middlewares/auth.middleware');
+const authRouter = require('./modules/auth/auth.route');
+const { publicRouter: onlinePaymentRouter, tenantRouter: tenantCheckoutRouter } = require('./modules/payments/online-payment.route');
 
 const app = express();
 
@@ -50,11 +52,15 @@ app.get('/api/session', authenticate, (req, res) => {
   res.json({ success: true, data: req.user });
 });
 
+app.use('/api/auth', authRouter);
+app.use('/api/online-payments', onlinePaymentRouter);
+
 app.use('/api/utility-readings', utilityReadingRouter);
 app.use('/api/service-prices', servicePriceRouter);
 app.use('/api/invoices', invoiceRouter);
 app.use('/api/payments', paymentRouter);
 app.use('/api/tenants/me/invoices', tenantInvoiceRouter);
+app.use('/api/tenants/me/invoices', tenantCheckoutRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

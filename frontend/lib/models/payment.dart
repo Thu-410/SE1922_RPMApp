@@ -18,12 +18,12 @@ class Payment {
   final DateTime paymentDate;
 
   factory Payment.fromJson(Map<String, dynamic> json) => Payment(
-        id: json['id'] as int,
-        invoiceId: json['invoice_id'] as int,
-        roomNumber: json['room_number']?.toString() ?? '',
-        tenantName: json['tenant_name']?.toString() ?? '',
-        amount: (json['amount'] as num).toDouble(),
-        method: json['payment_method'].toString(),
-        paymentDate: DateTime.parse(json['payment_date'].toString()),
-      );
+    id: json['id'] as int,
+    invoiceId: json['invoice_id'] as int,
+    roomNumber: json['room_number']?.toString() ?? '',
+    tenantName: json['tenant_name']?.toString() ?? '',
+    amount: (json['amount'] as num).toDouble(),
+    method: json['payment_method'].toString(),
+    paymentDate: DateTime.parse(json['payment_date'].toString()),
+  );
 }

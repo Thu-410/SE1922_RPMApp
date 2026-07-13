@@ -9,5 +9,6 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
     expect(find.text('Quản lý trọ'), findsOneWidget);
+    expect(find.text('Đăng nhập'), findsOneWidget);
   });
 }

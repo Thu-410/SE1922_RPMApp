@@ -3,8 +3,9 @@ import '../../core/constants/api_constants.dart';
 import '../../core/storage/token_storage.dart';
 
 class TokenSetupScreen extends StatefulWidget {
-  const TokenSetupScreen({super.key, required this.onSaved});
+  const TokenSetupScreen({super.key, required this.onSaved, this.errorMessage});
   final VoidCallback onSaved;
+  final String? errorMessage;
 
   @override
   State<TokenSetupScreen> createState() => _TokenSetupScreenState();
@@ -23,7 +24,9 @@ class _TokenSetupScreenState extends State<TokenSetupScreen> {
   Future<void> _save() async {
     final token = _controller.text.trim();
     if (token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập JWT')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng nhập JWT')));
       return;
     }
     setState(() => _saving = true);
@@ -46,20 +49,52 @@ class _TokenSetupScreenState extends State<TokenSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.apartment_rounded, size: 56, color: Color(0xFF2563EB)),
+                      const Icon(
+                        Icons.apartment_rounded,
+                        size: 56,
+                        color: Color(0xFF2563EB),
+                      ),
                       const SizedBox(height: 16),
-                      Text('Quản lý trọ', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        'Quản lý trọ',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 8),
-                      const Text('Nhập JWT tạm thời để kiểm thử các module quản trị. Màn hình này sẽ được thay bằng đăng nhập sau.', textAlign: TextAlign.center),
+                      const Text(
+                        'Nhập JWT tạm thời để kiểm thử các module quản trị. Màn hình này sẽ được thay bằng đăng nhập sau.',
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 20),
+                      if (widget.errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            widget.errorMessage!,
+                            style: const TextStyle(color: Color(0xFFB91C1C)),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       TextField(
                         controller: _controller,
                         minLines: 3,
                         maxLines: 6,
-                        decoration: const InputDecoration(labelText: 'JWT access token', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          labelText: 'JWT access token',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      Text('Backend: ${ApiConstants.baseUrl}', style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        'Backend: ${ApiConstants.baseUrl}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
                         onPressed: _saving ? null : _save,

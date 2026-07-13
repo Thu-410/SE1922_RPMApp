@@ -28,17 +28,17 @@ class UtilityReading {
   final String? note;
 
   factory UtilityReading.fromJson(Map<String, dynamic> json) => UtilityReading(
-        id: json['id'] as int,
-        roomId: json['room_id'] as int,
-        roomNumber: json['room_number']?.toString() ?? 'Phòng ${json['room_id']}',
-        month: json['month'] as int,
-        year: json['year'] as int,
-        oldElectric: json['old_electric'] as int,
-        newElectric: json['new_electric'] as int,
-        oldWater: json['old_water'] as int,
-        newWater: json['new_water'] as int,
-        electricUsage: json['electric_usage'] as int,
-        waterUsage: json['water_usage'] as int,
-        note: json['note']?.toString(),
-      );
+    id: json['id'] as int,
+    roomId: json['room_id'] as int,
+    roomNumber: json['room_number']?.toString() ?? 'Phòng ${json['room_id']}',
+    month: json['month'] as int,
+    year: json['year'] as int,
+    oldElectric: json['old_electric'] as int,
+    newElectric: json['new_electric'] as int,
+    oldWater: json['old_water'] as int,
+    newWater: json['new_water'] as int,
+    electricUsage: json['electric_usage'] as int,
+    waterUsage: json['water_usage'] as int,
+    note: json['note']?.toString(),
+  );
 }

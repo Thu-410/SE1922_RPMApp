@@ -20,13 +20,13 @@ class ServicePrice {
   final bool isActive;
 
   factory ServicePrice.fromJson(Map<String, dynamic> json) => ServicePrice(
-        id: json['id'] as int,
-        electricPrice: (json['electric_price'] as num).toDouble(),
-        waterPrice: (json['water_price'] as num).toDouble(),
-        serviceFee: (json['service_fee'] as num).toDouble(),
-        parkingFee: (json['parking_fee'] as num).toDouble(),
-        internetFee: (json['internet_fee'] as num).toDouble(),
-        effectiveDate: DateTime.parse(json['effective_date'].toString()),
-        isActive: json['is_active'] == true || json['is_active'] == 1,
-      );
+    id: json['id'] as int,
+    electricPrice: (json['electric_price'] as num).toDouble(),
+    waterPrice: (json['water_price'] as num).toDouble(),
+    serviceFee: (json['service_fee'] as num).toDouble(),
+    parkingFee: (json['parking_fee'] as num).toDouble(),
+    internetFee: (json['internet_fee'] as num).toDouble(),
+    effectiveDate: DateTime.parse(json['effective_date'].toString()),
+    isActive: json['is_active'] == true || json['is_active'] == 1,
+  );
 }

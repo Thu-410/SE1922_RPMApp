@@ -9,11 +9,15 @@ class ApiClient {
 
   final http.Client _client;
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) =>
-      _send('GET', path, query: query);
+  Future<Map<String, dynamic>> get(
+    String path, {
+    Map<String, dynamic>? query,
+  }) => _send('GET', path, query: query);
 
-  Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? body}) =>
-      _send('POST', path, body: body);
+  Future<Map<String, dynamic>> post(
+    String path, {
+    Map<String, dynamic>? body,
+  }) => _send('POST', path, body: body);
 
   Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? body}) =>
       _send('PUT', path, body: body);
@@ -28,7 +32,9 @@ class ApiClient {
   }) async {
     final token = await TokenStorage.readAccessToken();
     final uri = Uri.parse('${ApiConstants.baseUrl}$path').replace(
-      queryParameters: query?.map((key, value) => MapEntry(key, value.toString())),
+      queryParameters: query?.map(
+        (key, value) => MapEntry(key, value.toString()),
+      ),
     );
     final headers = <String, String>{
       'Accept': 'application/json',
@@ -40,9 +46,17 @@ class ApiClient {
       late http.Response response;
       switch (method) {
         case 'POST':
-          response = await _client.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+          response = await _client.post(
+            uri,
+            headers: headers,
+            body: jsonEncode(body ?? {}),
+          );
         case 'PUT':
-          response = await _client.put(uri, headers: headers, body: jsonEncode(body ?? {}));
+          response = await _client.put(
+            uri,
+            headers: headers,
+            body: jsonEncode(body ?? {}),
+          );
         case 'DELETE':
           response = await _client.delete(uri, headers: headers);
         default:
@@ -66,7 +80,7 @@ class ApiClient {
       throw const ApiException('Phản hồi từ máy chủ không đúng định dạng');
     } catch (_) {
       throw const ApiException(
-        'Không thể kết nối máy chủ. Kiểm tra backend và địa chỉ 192.168.1.2.',
+        'Không thể kết nối máy chủ. Kiểm tra backend và địa chỉ 10.33.59.217.',
       );
     }
   }

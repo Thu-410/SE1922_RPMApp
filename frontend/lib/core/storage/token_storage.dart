@@ -6,7 +6,8 @@ class TokenStorage {
   static const _storage = FlutterSecureStorage();
   static const _accessTokenKey = 'access_token';
 
-  static Future<String?> readAccessToken() => _storage.read(key: _accessTokenKey);
+  static Future<String?> readAccessToken() =>
+      _storage.read(key: _accessTokenKey);
 
   static Future<void> saveAccessToken(String token) =>
       _storage.write(key: _accessTokenKey, value: token.trim());

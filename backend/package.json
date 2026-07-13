@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node --check server.js && node --check src/app.js && node --check src/config/db.js && node --check src/middlewares/auth.middleware.js && node --check src/middlewares/role.middleware.js && node --check src/modules/utilities/utility.service.js && node --check src/modules/utilities/service-price.service.js && node --check src/modules/utilities/utility.controller.js && node --check src/modules/utilities/utility.route.js && node --check src/modules/invoices/invoice.service.js && node --check src/modules/invoices/invoice.controller.js && node --check src/modules/invoices/invoice.route.js && node --check src/modules/payments/payment.service.js && node --check src/modules/payments/payment.controller.js && node --check src/modules/payments/payment.route.js"
+    "check": "node --check server.js && node --check src/app.js && node --check src/config/db.js && node --check src/utils/generateToken.js && node --check src/middlewares/auth.middleware.js && node --check src/middlewares/role.middleware.js && node --check src/modules/auth/auth.service.js && node --check src/modules/auth/auth.controller.js && node --check src/modules/auth/auth.route.js && node --check src/modules/utilities/utility.service.js && node --check src/modules/utilities/service-price.service.js && node --check src/modules/utilities/utility.controller.js && node --check src/modules/utilities/utility.route.js && node --check src/modules/invoices/invoice.service.js && node --check src/modules/invoices/invoice.controller.js && node --check src/modules/invoices/invoice.route.js && node --check src/modules/payments/payment.service.js && node --check src/modules/payments/payment.controller.js && node --check src/modules/payments/payment.route.js && node --check src/modules/payments/online-payment.service.js && node --check src/modules/payments/online-payment.controller.js && node --check src/modules/payments/online-payment.route.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +14,7 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
+    "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",

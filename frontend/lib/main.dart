@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
-import 'screens/token/token_setup_screen.dart';
 import 'models/session_user.dart';
 import 'services/session_service.dart';
 
@@ -21,6 +21,7 @@ class RentalManagementApp extends StatefulWidget {
 class _RentalManagementAppState extends State<RentalManagementApp> {
   final ApiClient _apiClient = ApiClient();
   late Future<SessionUser?> _sessionFuture;
+  String? _sessionError;
 
   @override
   void initState() {
@@ -29,10 +30,16 @@ class _RentalManagementAppState extends State<RentalManagementApp> {
   }
 
   Future<SessionUser?> _loadSession() async {
+    _sessionError = null;
     final token = await TokenStorage.readAccessToken();
     if (token == null || token.isEmpty) return null;
-    try { return await SessionService(_apiClient).getSession(); }
-    catch (_) { await TokenStorage.clear(); return null; }
+    try {
+      return await SessionService(_apiClient).getSession();
+    } catch (error) {
+      _sessionError = error.toString();
+      await TokenStorage.clear();
+      return null;
+    }
   }
 
   void _reloadToken() {
@@ -59,17 +66,25 @@ class _RentalManagementAppState extends State<RentalManagementApp> {
         cardTheme: const CardThemeData(
           elevation: 0,
           margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
         ),
       ),
       home: FutureBuilder<SessionUser?>(
         future: _sessionFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
           if (snapshot.data == null) {
-            return TokenSetupScreen(onSaved: _reloadToken);
+            return LoginScreen(
+              apiClient: _apiClient,
+              onLoggedIn: _reloadToken,
+              errorMessage: _sessionError,
+            );
           }
           return HomeScreen(
             apiClient: _apiClient,
