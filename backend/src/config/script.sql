@@ -45,7 +45,7 @@ CREATE INDEX idx_users_status ON users(status);
 
 -- =========================================================
 -- 3. ROOMS
--- status: available / occupied / maintenance / inactive
+-- status: available / occupied / maintenance / inactive / deleted
 -- =========================================================
 CREATE TABLE rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -55,7 +55,8 @@ CREATE TABLE rooms (
   area DECIMAL(10,2) NOT NULL,
   price DECIMAL(12,2) NOT NULL,
   deposit DECIMAL(12,2) NOT NULL,
-  status ENUM('available', 'occupied', 'maintenance', 'inactive') NOT NULL DEFAULT 'available',
+  status ENUM('available', 'occupied', 'maintenance', 'inactive', 'deleted') NOT NULL DEFAULT 'available',
+  version INT NOT NULL DEFAULT 1,
   description TEXT,
   image_url VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -128,7 +129,7 @@ CREATE TABLE tenants (
   CONSTRAINT fk_tenants_room
     FOREIGN KEY (room_id) REFERENCES rooms(id)
     ON UPDATE CASCADE
-    ON DELETE SET NULL
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_tenants_user_id ON tenants(user_id);
@@ -210,7 +211,7 @@ CREATE TABLE utility_readings (
   CONSTRAINT fk_utility_room
     FOREIGN KEY (room_id) REFERENCES rooms(id)
     ON UPDATE CASCADE
-    ON DELETE CASCADE,
+    ON DELETE RESTRICT,
   CONSTRAINT fk_utility_created_by
     FOREIGN KEY (created_by) REFERENCES users(id)
     ON UPDATE CASCADE
@@ -370,11 +371,11 @@ CREATE TABLE maintenance_requests (
   CONSTRAINT fk_maintenance_room
     FOREIGN KEY (room_id) REFERENCES rooms(id)
     ON UPDATE CASCADE
-    ON DELETE CASCADE,
+    ON DELETE RESTRICT,
   CONSTRAINT fk_maintenance_tenant
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     ON UPDATE CASCADE
-    ON DELETE CASCADE,
+    ON DELETE RESTRICT,
   CONSTRAINT fk_maintenance_staff
     FOREIGN KEY (assigned_staff_id) REFERENCES users(id)
     ON UPDATE CASCADE

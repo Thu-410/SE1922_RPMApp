@@ -11,8 +11,7 @@ const ROOM_FIELDS = [
     "status",
     "description",
     "image_url",
-    "images",
-    "expected_updated_at"
+    "images"
 ];
 
 class HttpError extends Error {
@@ -183,14 +182,12 @@ const normalizeRoomPayload = (body, { partial = false } = {}) => {
         payload.images = normalizeImages(rawImages);
     }
 
-    if (partial && has("expected_updated_at")) {
-        if (
-            typeof body.expected_updated_at !== "string" ||
-            Number.isNaN(Date.parse(body.expected_updated_at))
-        ) {
-            throw new HttpError(400, "Thời điểm cập nhật phòng không hợp lệ.");
+    if (partial && has("expected_version")) {
+        const version = Number(body.expected_version);
+        if (!Number.isInteger(version) || version <= 0) {
+            throw new HttpError(400, "Phiên bản dữ liệu phòng không hợp lệ.");
         }
-        payload.expected_updated_at = body.expected_updated_at;
+        payload.expected_version = version;
     }
 
     if (partial && !ROOM_FIELDS.some((field) => has(field))) {
@@ -248,10 +245,14 @@ const createRoom = async (req, res, next) => {
 const updateRoom = async (req, res, next) => {
     try {
         const id = parseId(req.params.id);
-        const room = await roomService.updateRoom(
-            id,
-            normalizeRoomPayload(req.body, { partial: true })
-        );
+        const changes = normalizeRoomPayload(req.body, { partial: true });
+        if (changes.expected_version === undefined) {
+            throw new HttpError(
+                428,
+                "Thiếu phiên bản dữ liệu phòng. Vui lòng tải lại trước khi cập nhật."
+            );
+        }
+        const room = await roomService.updateRoom(id, changes);
 
         if (!room) {
             throw new HttpError(404, "Không tìm thấy phòng.");
@@ -279,7 +280,19 @@ const updateRoomStatus = async (req, res, next) => {
             );
         }
 
-        const room = await roomService.updateRoomStatus(id, status);
+        const expectedVersion = Number(req.body?.expected_version);
+        if (!Number.isInteger(expectedVersion) || expectedVersion <= 0) {
+            throw new HttpError(
+                req.body?.expected_version === undefined ? 428 : 400,
+                "Thiếu hoặc sai phiên bản dữ liệu phòng. Vui lòng tải lại trước khi cập nhật."
+            );
+        }
+
+        const room = await roomService.updateRoomStatus(
+            id,
+            status,
+            expectedVersion
+        );
 
         if (!room) {
             throw new HttpError(404, "Không tìm thấy phòng.");

@@ -9,6 +9,7 @@ const ROOM_COLUMNS = [
     "price",
     "deposit",
     "status",
+    "version",
     "description",
     "image_url",
     "created_at",
@@ -86,48 +87,32 @@ const createConflict = (message) => {
     return error;
 };
 
-const validateRoomStatusConsistency = (
-    status,
-    { hasActiveContract = false, hasActiveTenant = false } = {}
-) => {
-    const occupied = Boolean(hasActiveContract || hasActiveTenant);
-    if (status === "occupied" && !occupied) {
-        throw createConflict(
-            "Chỉ có thể đánh dấu đang thuê khi phòng có người thuê hoặc hợp đồng đang hoạt động."
-        );
-    }
-    if (["available", "inactive"].includes(status) && occupied) {
-        throw createConflict(
-            "Không thể chuyển phòng đang có người thuê hoặc hợp đồng hoạt động sang trạng thái này."
-        );
-    }
-};
-
-const ensureRoomStatusConsistency = async (executor, roomId, status) => {
-    const [rows] = await executor.execute(
-        `SELECT
-           EXISTS(
-             SELECT 1 FROM contracts
-             WHERE room_id = ? AND status = 'active'
-           ) AS has_active_contract,
-           EXISTS(
-             SELECT 1 FROM tenants
-             WHERE room_id = ? AND status = 'active'
-           ) AS has_active_tenant`,
-        [roomId, roomId]
+const ensureRoomSoftDeleteSchema = async () => {
+    const [columns] = await pool.execute(
+        `SELECT COLUMN_TYPE AS column_type
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'rooms'
+           AND COLUMN_NAME = 'status'
+         LIMIT 1`
     );
-    validateRoomStatusConsistency(status, {
-        hasActiveContract: Boolean(rows[0]?.has_active_contract),
-        hasActiveTenant: Boolean(rows[0]?.has_active_tenant)
-    });
+    const columnType = columns[0]?.column_type || "";
+    if (!columnType.includes("'deleted'")) {
+        await pool.execute(
+            `ALTER TABLE rooms
+             MODIFY COLUMN status
+             ENUM('available', 'occupied', 'maintenance', 'inactive', 'deleted')
+             NOT NULL DEFAULT 'available'`
+        );
+    }
 };
 
 const getRooms = async ({ status } = {}) => {
-    let query = `SELECT ${ROOM_COLUMNS} FROM rooms`;
+    let query = `SELECT ${ROOM_COLUMNS} FROM rooms WHERE status <> 'deleted'`;
     const params = [];
 
     if (status) {
-        query += " WHERE status = ?";
+        query += " AND status = ?";
         params.push(status);
     }
 
@@ -138,7 +123,10 @@ const getRooms = async ({ status } = {}) => {
 
 const getRoomById = async (id, executor = pool) => {
     const [rows] = await executor.execute(
-        `SELECT ${ROOM_COLUMNS} FROM rooms WHERE id = ? LIMIT 1`,
+        `SELECT ${ROOM_COLUMNS}
+         FROM rooms
+         WHERE id = ? AND status <> 'deleted'
+         LIMIT 1`,
         [id]
     );
 
@@ -148,7 +136,6 @@ const getRoomById = async (id, executor = pool) => {
 };
 
 const createRoom = async (room) => {
-    validateRoomStatusConsistency(room.status);
     const connection = await pool.getConnection();
 
     try {
@@ -188,9 +175,9 @@ const updateRoom = async (id, changes) => {
     try {
         await connection.beginTransaction();
         const [existingRows] = await connection.execute(
-            `SELECT id, room_number, room_name, description, status, updated_at
+            `SELECT id, room_number, room_name, description, status, version, updated_at
              FROM rooms
-             WHERE id = ?
+             WHERE id = ? AND status <> 'deleted'
              FOR UPDATE`,
             [id]
         );
@@ -203,18 +190,12 @@ const updateRoom = async (id, changes) => {
         const existingRoom = existingRows[0];
         const scalarChanges = { ...changes };
         delete scalarChanges.images;
-        delete scalarChanges.expected_updated_at;
+        delete scalarChanges.expected_version;
 
-        if (changes.expected_updated_at) {
-            const expectedTime = new Date(changes.expected_updated_at).getTime();
-            const currentTime = new Date(existingRoom.updated_at).getTime();
-            if (expectedTime !== currentTime) {
-                const conflict = new Error(
-                    "Phòng đã được cập nhật ở màn hình khác. Vui lòng tải lại dữ liệu."
-                );
-                conflict.statusCode = 409;
-                throw conflict;
-            }
+        if (changes.expected_version !== existingRoom.version) {
+            throw createConflict(
+                "Phòng đã được cập nhật ở màn hình khác. Vui lòng tải lại dữ liệu."
+            );
         }
 
         const [historyRows] = await connection.execute(
@@ -285,13 +266,6 @@ const updateRoom = async (id, changes) => {
             );
         }
 
-        if (
-            scalarChanges.status !== undefined &&
-            scalarChanges.status !== existingRoom.status
-        ) {
-            await ensureRoomStatusConsistency(connection, id, scalarChanges.status);
-        }
-
         const fields = UPDATABLE_FIELDS.filter((field) =>
             Object.prototype.hasOwnProperty.call(scalarChanges, field)
         );
@@ -300,7 +274,9 @@ const updateRoom = async (id, changes) => {
             const assignments = fields.map((field) => `${field} = ?`).join(", ");
             const values = fields.map((field) => scalarChanges[field]);
             await connection.execute(
-                `UPDATE rooms SET ${assignments} WHERE id = ?`,
+                `UPDATE rooms
+                 SET ${assignments}, version = version + 1
+                 WHERE id = ?`,
                 [...values, id]
             );
         }
@@ -320,11 +296,45 @@ const updateRoom = async (id, changes) => {
     }
 };
 
-const updateRoomStatus = async (id, status) => updateRoom(id, { status });
+const updateRoomStatus = async (id, status, expectedVersion) =>
+    updateRoom(id, { status, expected_version: expectedVersion });
 
 const deleteRoom = async (id) => {
-    const [result] = await pool.execute("DELETE FROM rooms WHERE id = ?", [id]);
-    return result.affectedRows > 0;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [rooms] = await connection.execute(
+            `SELECT id, status
+             FROM rooms
+             WHERE id = ? AND status <> 'deleted'
+             FOR UPDATE`,
+            [id]
+        );
+        if (!rooms[0]) {
+            await connection.rollback();
+            return false;
+        }
+
+        if (rooms[0].status === "occupied") {
+            throw createConflict(
+                "Không thể xóa phòng đang thuê. Vui lòng chuyển phòng sang trạng thái khác trước khi xóa."
+            );
+        }
+
+        await connection.execute(
+            `UPDATE rooms
+             SET status = 'deleted', version = version + 1
+             WHERE id = ?`,
+            [id]
+        );
+        await connection.commit();
+        return true;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 };
 
 module.exports = {
@@ -335,5 +345,5 @@ module.exports = {
     updateRoomStatus,
     deleteRoom,
     replaceDelimitedReference,
-    validateRoomStatusConsistency
+    ensureRoomSoftDeleteSchema
 };

@@ -86,29 +86,51 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _saving = true);
     final roomNumber = _numberController.text.trim();
     final roomName = _nameController.text.trim();
+    final floor = int.tryParse(_floorController.text.trim());
+    final area = _parsePositiveNumber(_areaController.text);
+    final price = _parsePositiveNumber(_priceController.text);
+    final deposit = _parsePositiveNumber(_depositController.text);
+
+    if (floor == null ||
+        floor < 0 ||
+        area == null ||
+        price == null ||
+        deposit == null) {
+      _formKey.currentState!.validate();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Dữ liệu số không hợp lệ. Vui lòng kiểm tra tầng, diện tích, giá thuê và tiền cọc.',
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
 
     final input = RoomInput(
       roomNumber: roomNumber,
       roomName: roomName,
-      floor: int.parse(_floorController.text),
-      area: double.parse(_areaController.text.replaceAll(',', '.')),
-      price: double.parse(_priceController.text.replaceAll(',', '.')),
-      deposit: double.parse(_depositController.text.replaceAll(',', '.')),
+      floor: floor,
+      area: area,
+      price: price,
+      deposit: deposit,
       status: _status,
       description: _descriptionController.text,
-      expectedUpdatedAt: widget.room?.updatedAt,
+      expectedVersion: widget.room?.version,
       images: _imageControllers
           .map((controller) => controller.text.trim())
           .where((image) => image.isNotEmpty)
           .toList(),
     );
 
+    setState(() => _saving = true);
     try {
       final saved = widget.isEditing
           ? await widget.roomService.updateRoom(widget.room!.id, input)
@@ -136,16 +158,22 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
   }
 
   String? _nonNegativeInt(String? value) {
-    final number = int.tryParse(value ?? '');
+    final number = int.tryParse(value?.trim() ?? '');
     if (number == null || number < 0) {
       return 'Giá trị phải là số nguyên từ 0';
     }
     return null;
   }
 
+  double? _parsePositiveNumber(String value) {
+    final number = double.tryParse(value.trim().replaceAll(',', '.'));
+    return number != null && number.isFinite && number > 0 ? number : null;
+  }
+
   String? _positiveNumber(String? value) {
-    final number = double.tryParse((value ?? '').replaceAll(',', '.'));
-    if (number == null || number <= 0) return 'Giá trị phải là số lớn hơn 0';
+    if (_parsePositiveNumber(value ?? '') == null) {
+      return 'Giá trị phải là số lớn hơn 0';
+    }
     return null;
   }
 
@@ -185,245 +213,257 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
             constraints: const BoxConstraints(maxWidth: 800),
             child: Form(
               key: _formKey,
-              child: ListView(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                children: [
-                  Text(
-                    widget.isEditing
-                        ? 'Cập nhật thông tin phòng ${widget.room!.roomNumber}'
-                        : 'Điền đầy đủ thông tin để tạo phòng mới.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: const Color(0xFF667085),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      widget.isEditing
+                          ? 'Cập nhật thông tin phòng ${widget.room!.roomNumber}'
+                          : 'Điền đầy đủ thông tin để tạo phòng mới.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF667085),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  _Section(
-                    title: 'Thông tin cơ bản',
-                    children: [
-                      _ResponsiveFields(
-                        children: [
-                          TextFormField(
-                            controller: _numberController,
-                            validator: (value) {
-                              final error = _requiredText(value);
-                              if (error != null) return error;
-                              return value!.trim().length > 50
-                                  ? 'Mã phòng không được vượt quá 50 ký tự'
-                                  : null;
-                            },
-                            decoration: const InputDecoration(
-                              labelText: 'Mã phòng *',
-                              hintText: 'Ví dụ: P101',
-                              prefixIcon: Icon(Icons.tag_outlined),
-                            ),
-                          ),
-                          TextFormField(
-                            controller: _nameController,
-                            validator: (value) {
-                              final error = _requiredText(value);
-                              if (error != null) return error;
-                              return value!.trim().length > 150
-                                  ? 'Tên phòng không được vượt quá 150 ký tự'
-                                  : null;
-                            },
-                            decoration: const InputDecoration(
-                              labelText: 'Tên phòng *',
-                              hintText: 'Ví dụ: Phòng ban công P101',
-                              prefixIcon: Icon(Icons.meeting_room_outlined),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _ResponsiveFields(
-                        children: [
-                          TextFormField(
-                            controller: _floorController,
-                            validator: _nonNegativeInt,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: const InputDecoration(
-                              labelText: 'Tầng *',
-                              prefixIcon: Icon(Icons.layers_outlined),
-                            ),
-                          ),
-                          TextFormField(
-                            controller: _areaController,
-                            validator: _positiveNumber,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: const [
-                              _DecimalInputFormatter(decimalPlaces: 2),
-                            ],
-                            decoration: const InputDecoration(
-                              labelText: 'Diện tích (m²) *',
-                              prefixIcon: Icon(Icons.square_foot_outlined),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<RoomStatus>(
-                        initialValue: _status,
-                        decoration: const InputDecoration(
-                          labelText: 'Trạng thái *',
-                          prefixIcon: Icon(Icons.flag_outlined),
-                        ),
-                        items: RoomStatus.values
-                            .map(
-                              (status) => DropdownMenuItem(
-                                value: status,
-                                child: Text(status.label),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) setState(() => _status = value);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _Section(
-                    title: 'Chi phí',
-                    children: [
-                      _ResponsiveFields(
-                        children: [
-                          TextFormField(
-                            controller: _priceController,
-                            validator: _positiveNumber,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: const InputDecoration(
-                              labelText: 'Giá thuê (VNĐ/tháng) *',
-                              prefixIcon: Icon(Icons.payments_outlined),
-                            ),
-                          ),
-                          TextFormField(
-                            controller: _depositController,
-                            validator: _positiveNumber,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: const InputDecoration(
-                              labelText: 'Tiền cọc (VNĐ) *',
-                              prefixIcon: Icon(
-                                Icons.account_balance_wallet_outlined,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _Section(
-                    title: 'Ảnh chi tiết',
-                    children: [
-                      const Text(
-                        'Thêm tối đa 10 URL ảnh. Ảnh đầu tiên là ảnh đại diện.',
-                        style: TextStyle(color: Color(0xFF667085)),
-                      ),
-                      const SizedBox(height: 14),
-                      for (
-                        var index = 0;
-                        index < _imageControllers.length;
-                        index++
-                      ) ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 24),
+                    _Section(
+                      title: 'Thông tin cơ bản',
+                      children: [
+                        _ResponsiveFields(
                           children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _imageControllers[index],
-                                validator: _imageUrl,
-                                keyboardType: TextInputType.url,
-                                decoration: InputDecoration(
-                                  labelText: 'Ảnh ${index + 1}',
-                                  hintText: 'https://example.com/room.jpg',
-                                  prefixIcon: const Icon(Icons.image_outlined),
-                                ),
+                            TextFormField(
+                              controller: _numberController,
+                              validator: (value) {
+                                final error = _requiredText(value);
+                                if (error != null) return error;
+                                return value!.trim().length > 50
+                                    ? 'Mã phòng không được vượt quá 50 ký tự'
+                                    : null;
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Mã phòng *',
+                                hintText: 'Ví dụ: P101',
+                                prefixIcon: Icon(Icons.tag_outlined),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              tooltip: 'Xóa ảnh này',
-                              onPressed: () => _removeImageField(index),
-                              icon: const Icon(Icons.remove_circle_outline),
-                              color: Colors.red.shade600,
+                            TextFormField(
+                              controller: _nameController,
+                              validator: (value) {
+                                final error = _requiredText(value);
+                                if (error != null) return error;
+                                return value!.trim().length > 150
+                                    ? 'Tên phòng không được vượt quá 150 ký tự'
+                                    : null;
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Tên phòng *',
+                                hintText: 'Ví dụ: Phòng ban công P101',
+                                prefixIcon: Icon(Icons.meeting_room_outlined),
+                              ),
                             ),
                           ],
                         ),
-                        if (index < _imageControllers.length - 1)
-                          const SizedBox(height: 12),
-                      ],
-                      const SizedBox(height: 14),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed: _imageControllers.length >= 10
-                              ? null
-                              : _addImageField,
-                          icon: const Icon(Icons.add_photo_alternate_outlined),
-                          label: Text(
-                            'Thêm ảnh (${_imageControllers.length}/10)',
+                        const SizedBox(height: 16),
+                        _ResponsiveFields(
+                          children: [
+                            TextFormField(
+                              controller: _floorController,
+                              validator: _nonNegativeInt,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Tầng *',
+                                prefixIcon: Icon(Icons.layers_outlined),
+                              ),
+                            ),
+                            TextFormField(
+                              controller: _areaController,
+                              validator: _positiveNumber,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              inputFormatters: const [
+                                _DecimalInputFormatter(decimalPlaces: 2),
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Diện tích (m²) *',
+                                prefixIcon: Icon(Icons.square_foot_outlined),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<RoomStatus>(
+                          initialValue: _status,
+                          decoration: const InputDecoration(
+                            labelText: 'Trạng thái *',
+                            prefixIcon: Icon(Icons.flag_outlined),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _Section(
-                    title: 'Mô tả phòng',
-                    children: [
-                      TextFormField(
-                        controller: _descriptionController,
-                        minLines: 5,
-                        maxLines: 9,
-                        decoration: const InputDecoration(
-                          labelText: 'Mô tả',
-                          hintText:
-                              'Mô tả tiện nghi, vị trí, nội thất hoặc ghi chú về phòng...',
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.pop(context),
-                        child: const Text('Hủy'),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        onPressed: _saving ? null : _save,
-                        icon: _saving
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                          items: RoomStatus.values
+                              .map(
+                                (status) => DropdownMenuItem(
+                                  value: status,
+                                  child: Text(status.label),
                                 ),
                               )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(
-                          widget.isEditing ? 'Lưu thay đổi' : 'Thêm phòng',
+                              .toList(),
+                          onChanged: _saving
+                              ? null
+                              : (value) {
+                                  if (value != null) {
+                                    setState(() => _status = value);
+                                  }
+                                },
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _Section(
+                      title: 'Chi phí',
+                      children: [
+                        _ResponsiveFields(
+                          children: [
+                            TextFormField(
+                              controller: _priceController,
+                              validator: _positiveNumber,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Giá thuê (VNĐ/tháng) *',
+                                prefixIcon: Icon(Icons.payments_outlined),
+                              ),
+                            ),
+                            TextFormField(
+                              controller: _depositController,
+                              validator: _positiveNumber,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Tiền cọc (VNĐ) *',
+                                prefixIcon: Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _Section(
+                      title: 'Ảnh chi tiết',
+                      children: [
+                        const Text(
+                          'Thêm tối đa 10 URL ảnh. Ảnh đầu tiên là ảnh đại diện.',
+                          style: TextStyle(color: Color(0xFF667085)),
+                        ),
+                        const SizedBox(height: 14),
+                        for (
+                          var index = 0;
+                          index < _imageControllers.length;
+                          index++
+                        ) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _imageControllers[index],
+                                  validator: _imageUrl,
+                                  keyboardType: TextInputType.url,
+                                  decoration: InputDecoration(
+                                    labelText: 'Ảnh ${index + 1}',
+                                    hintText: 'https://example.com/room.jpg',
+                                    prefixIcon: const Icon(
+                                      Icons.image_outlined,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                tooltip: 'Xóa ảnh này',
+                                onPressed: () => _removeImageField(index),
+                                icon: const Icon(Icons.remove_circle_outline),
+                                color: Colors.red.shade600,
+                              ),
+                            ],
+                          ),
+                          if (index < _imageControllers.length - 1)
+                            const SizedBox(height: 12),
+                        ],
+                        const SizedBox(height: 14),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: _imageControllers.length >= 10
+                                ? null
+                                : _addImageField,
+                            icon: const Icon(
+                              Icons.add_photo_alternate_outlined,
+                            ),
+                            label: Text(
+                              'Thêm ảnh (${_imageControllers.length}/10)',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _Section(
+                      title: 'Mô tả phòng',
+                      children: [
+                        TextFormField(
+                          controller: _descriptionController,
+                          minLines: 5,
+                          maxLines: 9,
+                          decoration: const InputDecoration(
+                            labelText: 'Mô tả',
+                            hintText:
+                                'Mô tả tiện nghi, vị trí, nội thất hoặc ghi chú về phòng...',
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _saving
+                              ? null
+                              : () => Navigator.pop(context),
+                          child: const Text('Hủy'),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton.icon(
+                          onPressed: _saving ? null : _save,
+                          icon: _saving
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined),
+                          label: Text(
+                            widget.isEditing ? 'Lưu thay đổi' : 'Thêm phòng',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

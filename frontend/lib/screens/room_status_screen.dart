@@ -29,6 +29,7 @@ class _RoomStatusScreenState extends State<RoomStatusScreen> {
       final room = await widget.roomService.updateStatus(
         widget.room.id,
         _selectedStatus,
+        expectedVersion: widget.room.version,
       );
       if (!mounted) return;
       Navigator.pop(context, room);

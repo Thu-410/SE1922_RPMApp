@@ -1,6 +1,7 @@
 # Flutter quản lý phòng
 
-Ứng dụng Flutter gồm đăng nhập, danh sách phòng, chi tiết phòng, thêm phòng và chỉnh sửa phòng. Ứng dụng hỗ trợ tìm kiếm, lọc trạng thái, xóa phòng và cập nhật nhanh trạng thái từ trang chi tiết.
+Ứng dụng Flutter mở thẳng danh sách phòng, gồm danh sách, chi tiết, thêm, sửa,
+xóa, lọc và cập nhật trạng thái phòng. Module này không chứa chức năng đăng nhập.
 
 ## Chạy project
 
@@ -23,7 +24,6 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.10:3000
 ```
 
 HTTP chỉ được bật trong bản Android debug. Bản release phải dùng backend HTTPS.
-Tài khoản demo quản lý: `manager@gmail.com` / `123456`.
 
 Kiểm tra code bằng:
 
@@ -32,11 +32,9 @@ flutter analyze
 flutter test
 ```
 
-## Đăng nhập và phân quyền
-
-Ứng dụng gọi `/api/auth/login`, giữ token trong phiên chạy và tự truyền Bearer
-token cho API phòng. Giao diện lấy quyền từ role; nếu không có role hợp lệ thì
-mặc định từ chối toàn bộ thay vì cấp toàn quyền.
+Trạng thái `Đang thuê` được backend tự xác định từ người thuê/hợp đồng nên không thể
+chọn thủ công. Các lần sửa phòng và đổi trạng thái dùng `version` để phát hiện dữ
+liệu đã được người khác sửa.
 
 Khi phát hành Android, cấu hình ký release bằng các biến
 `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` và

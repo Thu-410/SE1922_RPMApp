@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../core/formatters.dart';
 import '../models/room.dart';
-import '../models/room_permissions.dart';
 import '../services/room_api_service.dart';
 import '../widgets/room_image.dart';
 import '../widgets/room_status_chip.dart';
@@ -10,16 +9,9 @@ import 'add_room_screen.dart';
 import 'room_detail_screen.dart';
 
 class RoomListScreen extends StatefulWidget {
-  const RoomListScreen({
-    super.key,
-    required this.roomService,
-    this.permissions = RoomPermissions.denied,
-    this.onLogout,
-  });
+  const RoomListScreen({super.key, required this.roomService});
 
   final RoomApiService roomService;
-  final RoomPermissions permissions;
-  final VoidCallback? onLogout;
 
   @override
   State<RoomListScreen> createState() => _RoomListScreenState();
@@ -87,7 +79,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   Future<void> _addRoom() async {
-    if (!widget.permissions.canCreate) return;
     final created = await Navigator.push<Room>(
       context,
       MaterialPageRoute(
@@ -107,7 +98,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
           roomId: room.id,
           roomService: widget.roomService,
           initialRoom: room,
-          permissions: widget.permissions,
         ),
       ),
     );
@@ -165,22 +155,14 @@ class _RoomListScreenState extends State<RoomListScreen> {
             onPressed: _loading ? null : _loadRooms,
             icon: const Icon(Icons.refresh_rounded),
           ),
-          if (widget.onLogout != null)
-            IconButton(
-              tooltip: 'Đăng xuất',
-              onPressed: widget.onLogout,
-              icon: const Icon(Icons.logout),
-            ),
           const SizedBox(width: 8),
         ],
       ),
-      floatingActionButton: widget.permissions.canCreate
-          ? FloatingActionButton.extended(
-              onPressed: _addRoom,
-              icon: const Icon(Icons.add),
-              label: const Text('Thêm phòng'),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addRoom,
+        icon: const Icon(Icons.add),
+        label: const Text('Thêm phòng'),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadRooms,
@@ -208,7 +190,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
                       setState(() => _query = '');
                       _setStatus(null);
                     },
-                    onAdd: widget.permissions.canCreate ? _addRoom : null,
+                    onAdd: _addRoom,
                   ),
                 )
               else
@@ -276,14 +258,12 @@ class _RoomListScreenState extends State<RoomListScreen> {
                   return Row(
                     children: [
                       Expanded(child: search),
-                      if (widget.permissions.canCreate) ...[
-                        const SizedBox(width: 14),
-                        FilledButton.icon(
-                          onPressed: _addRoom,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Thêm phòng'),
-                        ),
-                      ],
+                      const SizedBox(width: 14),
+                      FilledButton.icon(
+                        onPressed: _addRoom,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Thêm phòng'),
+                      ),
                     ],
                   );
                 },

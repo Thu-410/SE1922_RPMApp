@@ -1,15 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const { pool, connectDB } = require("./src/config/db");
-const authRoutes = require("./src/modules/auth/auth.route");
-const userRoutes = require("./src/modules/users/user.route");
 const roomRoutes = require("./src/modules/rooms/room.route");
-const { authenticate } = require("./src/middlewares/auth.middleware");
+const { ensureRoomSoftDeleteSchema } = require("./src/modules/rooms/room.service");
 const errorMiddleware = require("./src/middlewares/error.middleware");
-const {
-    validateAuthConfig,
-    upgradeLegacyPasswords
-} = require("./src/modules/auth/auth.service");
 
 const app = express();
 
@@ -43,9 +37,7 @@ app.get("/health", async (req, res, next) => {
     }
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/rooms", authenticate, roomRoutes);
+app.use("/api/rooms", roomRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ success: false, message: "Không tìm thấy API." });
@@ -56,9 +48,8 @@ app.use(errorMiddleware);
 const startServer = async () => {
     const port = Number(process.env.PORT) || 3000;
 
-    validateAuthConfig();
     await connectDB();
-    await upgradeLegacyPasswords();
+    await ensureRoomSoftDeleteSchema();
     app.listen(port, () => {
         console.log(`Ứng dụng đang chạy ở cổng ${port}`);
     });
