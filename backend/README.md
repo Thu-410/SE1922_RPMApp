@@ -4,8 +4,8 @@ Backend Node.js/Express cung cấp CRUD phòng, lọc theo trạng thái, xem ch
 
 ## Chạy project
 
-1. Chạy file `src/config/script.sql` trên MySQL để tạo database `quan_ly_tro` và dữ liệu mẫu.
-2. Cấu hình kết nối bằng biến môi trường nếu thông tin MySQL khác giá trị mặc định:
+1. Chạy file `src/config/script.sql` trên MySQL để tạo database `quan_ly_tro` và dữ liệu mẫu. File này xóa database cũ nên chỉ dùng khi khởi tạo lại dữ liệu.
+2. Cấu hình kết nối và khóa ký token bằng biến môi trường:
 
 ```powershell
 $env:DB_HOST = "127.0.0.1"
@@ -13,6 +13,8 @@ $env:DB_PORT = "3306"
 $env:DB_USER = "root"
 $env:DB_PASSWORD = "mat_khau_mysql"
 $env:DB_NAME = "quan_ly_tro"
+$env:JWT_SECRET = "mot_chuoi_bi_mat_dai_va_ngau_nhien"
+$env:CORS_ORIGINS = "https://ten-mien-frontend.example"
 ```
 
 3. Cài package và chạy server:
@@ -23,6 +25,15 @@ npm start
 ```
 
 Server mặc định chạy tại `http://localhost:3000`.
+
+## Đăng nhập
+
+Gửi `POST /api/auth/login` với `email` và `password`, sau đó gắn token nhận được
+vào các API bảo vệ bằng header `Authorization: Bearer <token>`.
+
+Tài khoản demo quản lý là `manager@gmail.com`, mật khẩu `123456`. Mật khẩu mẫu
+trong SQL đã được băm bằng bcrypt; dữ liệu legacy dạng text sẽ được nâng cấp sau
+lần đăng nhập hợp lệ đầu tiên.
 
 ## API phòng
 
@@ -38,14 +49,15 @@ Server mặc định chạy tại `http://localhost:3000`.
 
 Trạng thái hợp lệ: `available`, `occupied`, `maintenance`, `inactive`.
 
+Phòng chỉ được chuyển sang `occupied` khi có người thuê hoặc hợp đồng hoạt động;
+không thể chuyển sang `available`/`inactive` khi các quan hệ này vẫn còn hiệu lực.
+
 Payload tạo/sửa phòng hỗ trợ `room_number`, `room_name`, `floor`, `area`,
 `price`, `deposit`, `status`, `description` và `images` (mảng tối đa 10 URL).
 
-Khi `room_number` thay đổi, backend tự đồng bộ mã xuất hiện trong tên/mô tả
-phòng và các ghi chú liên quan của hợp đồng, điện nước, hóa đơn, thanh toán,
-bảo trì và thông báo. Các quan hệ dữ liệu dùng `room_id` nên vẫn giữ nguyên.
-Lịch sử mã được lưu theo `room_id` để request cũ/đến chậm không thể ghi đè
-tên phòng bằng mã trước đó.
+Khi `room_number` thay đổi, backend chỉ đồng bộ mã đứng độc lập trong tên/mô tả
+phòng. Ghi chú lịch sử của hợp đồng, hóa đơn, thanh toán và bảo trì được giữ nguyên;
+các quan hệ dữ liệu tiếp tục dùng `room_id`.
 
 Database tạo mới bằng `src/config/script.sql` đã gồm cấu trúc phòng và thư viện ảnh mẫu.
 Nếu nâng cấp database cũ, chạy lần lượt các file migration cần thiết trong
@@ -53,26 +65,14 @@ Nếu nâng cấp database cũ, chạy lần lượt các file migration cần t
 
 Chạy test bằng `npm test`.
 
-## Điểm nối phân quyền
+## Phân quyền
 
-Module phòng không tự xử lý đăng nhập. Sau khi middleware auth được merge, chỉ
-cần gắn một trong các cấu trúc sau vào `req.user`:
-
-```js
-req.user = { id: userId };
-req.user = { role_id: roleId };
-req.user = { role_name: "manager" };
-req.user = { role: { name: "manager" } };
-```
-
-Nếu chỉ có `id` hoặc `role_id`, module phòng tự tra tên role từ bảng `users` và
-`roles`. Policy tập trung tại `src/modules/rooms/room.authorization.js`:
+Middleware JWT xác thực mọi API phòng. Policy tập trung tại
+`src/modules/rooms/room.authorization.js`:
 
 - `manager`: xem, lọc, thêm, sửa, xóa và cập nhật trạng thái.
 - `staff`: xem, lọc, xem chi tiết và cập nhật trạng thái.
 - `tenant`: xem, lọc và xem chi tiết.
 
-Khi auth chưa được merge và chưa có `req.user`, API vẫn chạy để phát triển độc
-lập. Khi tích hợp hoàn tất, middleware auth chung nên chặn request chưa đăng
-nhập; hoặc đặt `AUTH_REQUIRED=true`/`ROOM_AUTH_REQUIRED=true` để module phòng tự
-trả `401` nếu thiếu `req.user`.
+`GET /api/users/me` trả hồ sơ hiện tại; `GET /api/users` chỉ dành cho manager và
+không bao giờ trả trường mật khẩu.

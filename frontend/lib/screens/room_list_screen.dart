@@ -13,11 +13,13 @@ class RoomListScreen extends StatefulWidget {
   const RoomListScreen({
     super.key,
     required this.roomService,
-    this.permissions = RoomPermissions.unrestricted,
+    this.permissions = RoomPermissions.denied,
+    this.onLogout,
   });
 
   final RoomApiService roomService;
   final RoomPermissions permissions;
+  final VoidCallback? onLogout;
 
   @override
   State<RoomListScreen> createState() => _RoomListScreenState();
@@ -30,6 +32,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
   String _query = '';
   String? _error;
   bool _loading = true;
+  int _loadRequestId = 0;
 
   List<Room> get _visibleRooms {
     if (_query.isEmpty) return _rooms;
@@ -55,17 +58,25 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   Future<void> _loadRooms() async {
+    final requestId = ++_loadRequestId;
+    final requestedStatus = _selectedStatus;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final rooms = await widget.roomService.getRooms(status: _selectedStatus);
-      if (mounted) setState(() => _rooms = rooms);
+      final rooms = await widget.roomService.getRooms(status: requestedStatus);
+      if (mounted && requestId == _loadRequestId) {
+        setState(() => _rooms = rooms);
+      }
     } on ApiException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted && requestId == _loadRequestId) {
+        setState(() => _error = error.message);
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestId == _loadRequestId) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -154,6 +165,12 @@ class _RoomListScreenState extends State<RoomListScreen> {
             onPressed: _loading ? null : _loadRooms,
             icon: const Icon(Icons.refresh_rounded),
           ),
+          if (widget.onLogout != null)
+            IconButton(
+              tooltip: 'Đăng xuất',
+              onPressed: widget.onLogout,
+              icon: const Icon(Icons.logout),
+            ),
           const SizedBox(width: 8),
         ],
       ),

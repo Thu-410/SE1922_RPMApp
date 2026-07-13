@@ -69,131 +69,57 @@ const insertImages = async (executor, roomId, images) => {
     );
 };
 
-const replaceRelatedRoomReference = async (
-    executor,
-    roomId,
-    oldRoomNumber,
-    newRoomNumber
-) => {
-    const likeOldNumber = `%${oldRoomNumber}%`;
-    const updates = [
-        [
-            `UPDATE contracts
-             SET note = REPLACE(note, ?, ?)
-             WHERE room_id = ? AND note LIKE ?`,
-            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
-        ],
-        [
-            `UPDATE utility_readings
-             SET note = REPLACE(note, ?, ?)
-             WHERE room_id = ? AND note LIKE ?`,
-            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
-        ],
-        [
-            `UPDATE invoices
-             SET note = REPLACE(note, ?, ?)
-             WHERE room_id = ? AND note LIKE ?`,
-            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
-        ],
-        [
-            `UPDATE invoice_details AS detail
-             JOIN invoices AS invoice ON invoice.id = detail.invoice_id
-             SET detail.item_name = REPLACE(detail.item_name, ?, ?),
-                 detail.note = CASE
-                   WHEN detail.note IS NULL THEN NULL
-                   ELSE REPLACE(detail.note, ?, ?)
-                 END
-             WHERE invoice.room_id = ?
-               AND (detail.item_name LIKE ? OR detail.note LIKE ?)`,
-            [
-                oldRoomNumber,
-                newRoomNumber,
-                oldRoomNumber,
-                newRoomNumber,
-                roomId,
-                likeOldNumber,
-                likeOldNumber
-            ]
-        ],
-        [
-            `UPDATE payments AS payment
-             JOIN invoices AS invoice ON invoice.id = payment.invoice_id
-             SET payment.note = REPLACE(payment.note, ?, ?)
-             WHERE invoice.room_id = ? AND payment.note LIKE ?`,
-            [oldRoomNumber, newRoomNumber, roomId, likeOldNumber]
-        ],
-        [
-            `UPDATE maintenance_requests
-             SET title = REPLACE(title, ?, ?),
-                 description = REPLACE(description, ?, ?),
-                 manager_note = CASE
-                   WHEN manager_note IS NULL THEN NULL
-                   ELSE REPLACE(manager_note, ?, ?)
-                 END
-             WHERE room_id = ?
-               AND (
-                 title LIKE ? OR description LIKE ? OR manager_note LIKE ?
-               )`,
-            [
-                oldRoomNumber,
-                newRoomNumber,
-                oldRoomNumber,
-                newRoomNumber,
-                oldRoomNumber,
-                newRoomNumber,
-                roomId,
-                likeOldNumber,
-                likeOldNumber,
-                likeOldNumber
-            ]
-        ],
-        [
-            `UPDATE notifications AS notification
-             JOIN invoices AS invoice
-               ON notification.related_type = 'invoice'
-              AND notification.related_id = invoice.id
-             SET notification.title = REPLACE(notification.title, ?, ?),
-                 notification.content = REPLACE(notification.content, ?, ?)
-             WHERE invoice.room_id = ?
-               AND (
-                 notification.title LIKE ? OR notification.content LIKE ?
-               )`,
-            [
-                oldRoomNumber,
-                newRoomNumber,
-                oldRoomNumber,
-                newRoomNumber,
-                roomId,
-                likeOldNumber,
-                likeOldNumber
-            ]
-        ],
-        [
-            `UPDATE notifications AS notification
-             JOIN maintenance_requests AS request
-               ON notification.related_type = 'maintenance_request'
-              AND notification.related_id = request.id
-             SET notification.title = REPLACE(notification.title, ?, ?),
-                 notification.content = REPLACE(notification.content, ?, ?)
-             WHERE request.room_id = ?
-               AND (
-                 notification.title LIKE ? OR notification.content LIKE ?
-               )`,
-            [
-                oldRoomNumber,
-                newRoomNumber,
-                oldRoomNumber,
-                newRoomNumber,
-                roomId,
-                likeOldNumber,
-                likeOldNumber
-            ]
-        ]
-    ];
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    for (const [query, params] of updates) {
-        await executor.execute(query, params);
+const replaceDelimitedReference = (value, oldValue, newValue) => {
+    if (!value || !oldValue || oldValue === newValue) return value;
+    const pattern = new RegExp(
+        `(?<![\\p{L}\\p{N}])${escapeRegExp(oldValue)}(?![\\p{L}\\p{N}])`,
+        "gu"
+    );
+    return value.replace(pattern, newValue);
+};
+
+const createConflict = (message) => {
+    const error = new Error(message);
+    error.statusCode = 409;
+    return error;
+};
+
+const validateRoomStatusConsistency = (
+    status,
+    { hasActiveContract = false, hasActiveTenant = false } = {}
+) => {
+    const occupied = Boolean(hasActiveContract || hasActiveTenant);
+    if (status === "occupied" && !occupied) {
+        throw createConflict(
+            "Chỉ có thể đánh dấu đang thuê khi phòng có người thuê hoặc hợp đồng đang hoạt động."
+        );
     }
+    if (["available", "inactive"].includes(status) && occupied) {
+        throw createConflict(
+            "Không thể chuyển phòng đang có người thuê hoặc hợp đồng hoạt động sang trạng thái này."
+        );
+    }
+};
+
+const ensureRoomStatusConsistency = async (executor, roomId, status) => {
+    const [rows] = await executor.execute(
+        `SELECT
+           EXISTS(
+             SELECT 1 FROM contracts
+             WHERE room_id = ? AND status = 'active'
+           ) AS has_active_contract,
+           EXISTS(
+             SELECT 1 FROM tenants
+             WHERE room_id = ? AND status = 'active'
+           ) AS has_active_tenant`,
+        [roomId, roomId]
+    );
+    validateRoomStatusConsistency(status, {
+        hasActiveContract: Boolean(rows[0]?.has_active_contract),
+        hasActiveTenant: Boolean(rows[0]?.has_active_tenant)
+    });
 };
 
 const getRooms = async ({ status } = {}) => {
@@ -222,6 +148,7 @@ const getRoomById = async (id, executor = pool) => {
 };
 
 const createRoom = async (room) => {
+    validateRoomStatusConsistency(room.status);
     const connection = await pool.getConnection();
 
     try {
@@ -261,7 +188,7 @@ const updateRoom = async (id, changes) => {
     try {
         await connection.beginTransaction();
         const [existingRows] = await connection.execute(
-            `SELECT id, room_number, room_name, description, updated_at
+            `SELECT id, room_number, room_name, description, status, updated_at
              FROM rooms
              WHERE id = ?
              FOR UPDATE`,
@@ -309,8 +236,12 @@ const updateRoom = async (id, changes) => {
         const replaceKnownRoomNumbers = (value) => {
             let normalized = value;
             for (const knownNumber of knownRoomNumbers) {
-                if (knownNumber !== effectiveRoomNumber && normalized?.includes(knownNumber)) {
-                    normalized = normalized.replaceAll(knownNumber, effectiveRoomNumber);
+                if (knownNumber !== effectiveRoomNumber) {
+                    normalized = replaceDelimitedReference(
+                        normalized,
+                        knownNumber,
+                        effectiveRoomNumber
+                    );
                 }
             }
             return normalized;
@@ -332,8 +263,9 @@ const updateRoom = async (id, changes) => {
             scalarChanges.description !== undefined
         ) {
             let description = scalarChanges.description ?? existingRoom.description;
-            if (roomNameChanged && description?.includes(existingRoom.room_name)) {
-                description = description.replaceAll(
+            if (roomNameChanged) {
+                description = replaceDelimitedReference(
+                    description,
                     existingRoom.room_name,
                     effectiveRoomName
                 );
@@ -353,6 +285,13 @@ const updateRoom = async (id, changes) => {
             );
         }
 
+        if (
+            scalarChanges.status !== undefined &&
+            scalarChanges.status !== existingRoom.status
+        ) {
+            await ensureRoomStatusConsistency(connection, id, scalarChanges.status);
+        }
+
         const fields = UPDATABLE_FIELDS.filter((field) =>
             Object.prototype.hasOwnProperty.call(scalarChanges, field)
         );
@@ -369,27 +308,6 @@ const updateRoom = async (id, changes) => {
         if (Object.prototype.hasOwnProperty.call(changes, "images")) {
             await connection.execute("DELETE FROM room_images WHERE room_id = ?", [id]);
             await insertImages(connection, id, changes.images);
-        }
-
-        if (roomNameChanged) {
-            await replaceRelatedRoomReference(
-                connection,
-                id,
-                existingRoom.room_name,
-                effectiveRoomName
-            );
-        }
-
-        if (roomNumberChanged) {
-            for (const knownRoomNumber of knownRoomNumbers) {
-                if (knownRoomNumber === effectiveRoomNumber) continue;
-                await replaceRelatedRoomReference(
-                    connection,
-                    id,
-                    knownRoomNumber,
-                    effectiveRoomNumber
-                );
-            }
         }
 
         await connection.commit();
@@ -415,5 +333,7 @@ module.exports = {
     createRoom,
     updateRoom,
     updateRoomStatus,
-    deleteRoom
+    deleteRoom,
+    replaceDelimitedReference,
+    validateRoomStatusConsistency
 };

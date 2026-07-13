@@ -1,25 +1,51 @@
 const express = require("express");
 const cors = require("cors");
 const { pool, connectDB } = require("./src/config/db");
+const authRoutes = require("./src/modules/auth/auth.route");
+const userRoutes = require("./src/modules/users/user.route");
 const roomRoutes = require("./src/modules/rooms/room.route");
+const { authenticate } = require("./src/middlewares/auth.middleware");
 const errorMiddleware = require("./src/middlewares/error.middleware");
+const {
+    validateAuthConfig,
+    upgradeLegacyPasswords
+} = require("./src/modules/auth/auth.service");
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+const configuredOrigins = new Set(
+    (process.env.CORS_ORIGINS || "")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+);
+const isDevelopmentOrigin = (origin) =>
+    process.env.NODE_ENV !== "production" &&
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-// Giữ lại endpoint hiện tại để không ảnh hưởng phần code đã có.
-app.get("/data", async (req, res, next) => {
+app.use(
+    cors({
+        origin(origin, callback) {
+            const allowed =
+                !origin || configuredOrigins.has(origin) || isDevelopmentOrigin(origin);
+            callback(null, allowed);
+        }
+    })
+);
+app.use(express.json({ limit: "100kb" }));
+
+app.get("/health", async (req, res, next) => {
     try {
-        const [results] = await pool.query("SELECT * FROM users");
-        res.json({ products: results });
+        await pool.query("SELECT 1");
+        res.json({ success: true });
     } catch (error) {
         next(error);
     }
 });
 
-app.use("/api/rooms", roomRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/rooms", authenticate, roomRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ success: false, message: "Không tìm thấy API." });
@@ -30,7 +56,9 @@ app.use(errorMiddleware);
 const startServer = async () => {
     const port = Number(process.env.PORT) || 3000;
 
+    validateAuthConfig();
     await connectDB();
+    await upgradeLegacyPasswords();
     app.listen(port, () => {
         console.log(`Ứng dụng đang chạy ở cổng ${port}`);
     });

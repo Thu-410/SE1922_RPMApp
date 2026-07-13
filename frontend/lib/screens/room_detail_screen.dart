@@ -15,7 +15,7 @@ class RoomDetailScreen extends StatefulWidget {
     required this.roomId,
     required this.roomService,
     this.initialRoom,
-    this.permissions = RoomPermissions.unrestricted,
+    this.permissions = RoomPermissions.denied,
   });
 
   final int roomId;

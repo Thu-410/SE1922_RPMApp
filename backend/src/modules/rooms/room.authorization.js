@@ -63,15 +63,8 @@ const createAuthorizationError = (statusCode, message) => {
 
 const authorizeRoomAction = (action) => async (req, res, next) => {
     try {
-        // Chế độ tích hợp: module phòng vẫn chạy độc lập khi auth chưa được merge.
-        // Khi AUTH_REQUIRED/ROOM_AUTH_REQUIRED=true, thiếu req.user sẽ trả 401.
         if (!req.user) {
-            const authRequired =
-                process.env.AUTH_REQUIRED === "true" ||
-                process.env.ROOM_AUTH_REQUIRED === "true";
-            return authRequired
-                ? next(createAuthorizationError(401, "Vui lòng đăng nhập."))
-                : next();
+            return next(createAuthorizationError(401, "Vui lòng đăng nhập."));
         }
 
         const roleName = await resolveRoleName(req.user);

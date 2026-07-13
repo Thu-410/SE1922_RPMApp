@@ -291,3 +291,38 @@ test("createRoom bắt buộc diện tích, giá và tiền cọc lớn hơn 0",
         assert.match(nextError.message, /lớn hơn 0/);
     }
 });
+
+test("đổi mã phòng không thay nhầm mã dài hơn", () => {
+    assert.equal(
+        roomService.replaceDelimitedReference(
+            "Phòng P1 chuyển từ khu P10 sang dãy P1.",
+            "P1",
+            "P2"
+        ),
+        "Phòng P2 chuyển từ khu P10 sang dãy P2."
+    );
+});
+
+test("trạng thái phòng phải phù hợp người thuê và hợp đồng", () => {
+    assert.throws(
+        () => roomService.validateRoomStatusConsistency("occupied"),
+        (error) => error.statusCode === 409
+    );
+    assert.throws(
+        () =>
+            roomService.validateRoomStatusConsistency("available", {
+                hasActiveContract: true
+            }),
+        (error) => error.statusCode === 409
+    );
+    assert.doesNotThrow(() =>
+        roomService.validateRoomStatusConsistency("occupied", {
+            hasActiveTenant: true
+        })
+    );
+    assert.doesNotThrow(() =>
+        roomService.validateRoomStatusConsistency("maintenance", {
+            hasActiveContract: true
+        })
+    );
+});

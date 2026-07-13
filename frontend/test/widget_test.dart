@@ -12,7 +12,10 @@ class _FakeRoomApiService extends RoomApiService {
 void main() {
   testWidgets('hiển thị danh sách phòng rỗng', (tester) async {
     await tester.pumpWidget(
-      RoomManagementApp(roomService: _FakeRoomApiService()),
+      RoomManagementApp(
+        roomService: _FakeRoomApiService(),
+        permissions: RoomPermissions.unrestricted,
+      ),
     );
     await tester.pumpAndSettle();
 

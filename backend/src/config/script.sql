@@ -423,15 +423,14 @@ INSERT INTO roles (id, name, description) VALUES
 (3, 'tenant', 'Người thuê phòng');
 
 -- 2. Users
--- Password mẫu đang để dạng text: 123456
--- Nếu backend của bạn dùng bcrypt.compare, hãy hash lại password bằng bcrypt.hash('123456', 10).
+-- Mật khẩu mẫu của các tài khoản là 123456 và đã được băm bằng bcrypt.
 INSERT INTO users (id, role_id, full_name, email, password, phone, status) VALUES
-(1, 1, 'Nguyễn Văn Quản Lý', 'manager@gmail.com', '123456', '0901000001', 'active'),
-(2, 2, 'Trần Văn Nhân Viên', 'staff@gmail.com', '123456', '0901000002', 'active'),
-(3, 3, 'Lê Thị Mai', 'mai@gmail.com', '123456', '0901000003', 'active'),
-(4, 3, 'Phạm Văn Nam', 'nam@gmail.com', '123456', '0901000004', 'active'),
-(5, 3, 'Hoàng Thu Hà', 'ha@gmail.com', '123456', '0901000005', 'active'),
-(6, 3, 'Đỗ Minh Đức', 'duc@gmail.com', '123456', '0901000006', 'inactive');
+(1, 1, 'Nguyễn Văn Quản Lý', 'manager@gmail.com', '$2b$12$U1qFl05rBbqkUNOSV6RAGO7uOUPNxvTn6iK//gFh.HQM2UDuWZZdu', '0901000001', 'active'),
+(2, 2, 'Trần Văn Nhân Viên', 'staff@gmail.com', '$2b$12$92keTgV4pU0Qz4F0svU88.IRpOsd4DX1l.JHlWrcUUCJ6b3sL8yQe', '0901000002', 'active'),
+(3, 3, 'Lê Thị Mai', 'mai@gmail.com', '$2b$12$Ys8b6TDA5M9pE2WllTPylOV3NGo7HzleF0jTF230COP1C4KlPgfG6', '0901000003', 'active'),
+(4, 3, 'Phạm Văn Nam', 'nam@gmail.com', '$2b$12$PdDzbVJ4Pzck2/4PAaNuIOuN.RxNmM/M9nQzqW7GEoH2Q.jo/VEFS', '0901000004', 'active'),
+(5, 3, 'Hoàng Thu Hà', 'ha@gmail.com', '$2b$12$dYL9CX2UGd5rReT3L1TTVegdYRizWzY/p5tRgczQx1QvDXMDS6ZNm', '0901000005', 'active'),
+(6, 3, 'Đỗ Minh Đức', 'duc@gmail.com', '$2b$12$ubx9xFHBrqyTtkPhRytvLeDbgFHpD.Qg5VznAYi8qeFHThjnt5aZu', '0901000006', 'inactive');
 
 -- 3. Rooms
 INSERT INTO rooms (id, room_number, room_name, floor, area, price, deposit, status, description, image_url) VALUES

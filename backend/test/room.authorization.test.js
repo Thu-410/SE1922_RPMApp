@@ -6,6 +6,14 @@ const {
     ROOM_ROLE_POLICY,
     authorizeRoomAction
 } = require("../src/modules/rooms/room.authorization");
+const authService = require("../src/modules/auth/auth.service");
+const { authenticate } = require("../src/middlewares/auth.middleware");
+
+const originalAuthService = { ...authService };
+
+test.afterEach(() => {
+    Object.assign(authService, originalAuthService);
+});
 
 const check = async (action, user) => {
     let nextError;
@@ -26,9 +34,9 @@ test("policy phòng khai báo đủ tất cả hành động", () => {
     ].sort());
 });
 
-test("module phòng vẫn chạy độc lập khi auth chưa được merge", async () => {
+test("module phòng từ chối request chưa đăng nhập theo mặc định", async () => {
     const error = await check(ROOM_ACTIONS.CREATE, undefined);
-    assert.equal(error, undefined);
+    assert.equal(error.statusCode, 401);
 });
 
 test("manager có toàn quyền quản lý phòng", async () => {
@@ -72,14 +80,50 @@ test("tenant chỉ được xem danh sách và chi tiết phòng", async () => {
     }
 });
 
-test("strict mode yêu cầu đăng nhập khi không có req.user", async () => {
-    const previous = process.env.ROOM_AUTH_REQUIRED;
-    process.env.ROOM_AUTH_REQUIRED = "true";
-    try {
-        const error = await check(ROOM_ACTIONS.LIST, undefined);
-        assert.equal(error.statusCode, 401);
-    } finally {
-        if (previous === undefined) delete process.env.ROOM_AUTH_REQUIRED;
-        else process.env.ROOM_AUTH_REQUIRED = previous;
-    }
+test("role không hợp lệ bị từ chối", async () => {
+    const error = await check(ROOM_ACTIONS.LIST, { role_name: "unknown" });
+    assert.equal(error.statusCode, 403);
+});
+
+test("middleware auth yêu cầu Bearer token", async () => {
+    let nextError;
+    await authenticate({ get: () => undefined }, {}, (error) => {
+        nextError = error;
+    });
+    assert.equal(nextError.statusCode, 401);
+});
+
+test("middleware auth lấy lại role và trạng thái hiện tại từ database", async () => {
+    authService.verifyToken = () => ({ id: 3, role_name: "manager" });
+    authService.getActiveIdentity = async () => ({ id: 3, role_name: "tenant" });
+    const req = { get: () => "Bearer valid-token" };
+    let nextError;
+    await authenticate(req, {}, (error) => {
+        nextError = error;
+    });
+    assert.equal(nextError, undefined);
+    assert.deepEqual(req.user, { id: 3, role_name: "tenant" });
+});
+
+test("middleware auth từ chối tài khoản đã bị khóa", async () => {
+    authService.verifyToken = () => ({ id: 6, role_name: "tenant" });
+    authService.getActiveIdentity = async () => null;
+    let nextError;
+    await authenticate({ get: () => "Bearer valid-token" }, {}, (error) => {
+        nextError = error;
+    });
+    assert.equal(nextError.statusCode, 401);
+});
+
+test("middleware auth không che giấu lỗi database thành lỗi đăng nhập", async () => {
+    const databaseError = new Error("database unavailable");
+    authService.verifyToken = () => ({ id: 1, role_name: "manager" });
+    authService.getActiveIdentity = async () => {
+        throw databaseError;
+    };
+    let nextError;
+    await authenticate({ get: () => "Bearer valid-token" }, {}, (error) => {
+        nextError = error;
+    });
+    assert.equal(nextError, databaseError);
 });
