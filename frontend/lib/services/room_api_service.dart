@@ -47,7 +47,7 @@ class RoomApiService {
         if (item is! Map) {
           throw const ApiException('Dữ liệu danh sách phòng không hợp lệ.');
         }
-        rooms.add(Room.fromJson(Map<String, dynamic>.from(item)));
+        rooms.add(_roomFromJson(Map<String, dynamic>.from(item)));
       }
     } on ApiException {
       rethrow;
@@ -69,7 +69,7 @@ class RoomApiService {
       () => _client.post(
         _uri(),
         headers: _headers,
-        body: jsonEncode(input.toJson()),
+        body: jsonEncode(_inputJson(input)),
       ),
     );
     return _roomFromResponse(response);
@@ -80,10 +80,38 @@ class RoomApiService {
       () => _client.put(
         _uri('/$id'),
         headers: _headers,
-        body: jsonEncode(input.toJson()),
+        body: jsonEncode(_inputJson(input)),
       ),
     );
     return _roomFromResponse(response);
+  }
+
+  Future<String> uploadRoomImage({
+    required String filename,
+    required List<int> bytes,
+  }) async {
+    final response = await _request(() async {
+      final request = http.MultipartRequest('POST', _uri('/images'));
+      request.files.add(
+        http.MultipartFile.fromBytes('image', bytes, filename: filename),
+      );
+      final streamedResponse = await _client.send(request);
+      return http.Response.fromStream(streamedResponse);
+    });
+
+    final data = response['data'];
+    final imageUrl = data is Map ? data['image_url'] : null;
+    if (imageUrl is! String || imageUrl.trim().isEmpty) {
+      throw const ApiException('Máy chủ không trả về URL ảnh hợp lệ.');
+    }
+
+    final parsed = Uri.tryParse(imageUrl.trim());
+    if (parsed == null) {
+      throw const ApiException('Máy chủ không trả về URL ảnh hợp lệ.');
+    }
+    if (parsed.hasScheme) return parsed.toString();
+
+    return Uri.parse('$_baseUrl/').resolveUri(parsed).toString();
   }
 
   Future<Room> updateStatus(
@@ -112,10 +140,55 @@ class RoomApiService {
     final data = response['data'];
     if (data is! Map) throw const ApiException('Dữ liệu phòng không hợp lệ.');
     try {
-      return Room.fromJson(Map<String, dynamic>.from(data));
+      return _roomFromJson(Map<String, dynamic>.from(data));
     } catch (_) {
       throw const ApiException('Dữ liệu phòng không hợp lệ.');
     }
+  }
+
+  Room _roomFromJson(Map<String, dynamic> data) {
+    final normalized = Map<String, dynamic>.from(data);
+    final images = normalized['images'];
+    if (images is List) {
+      normalized['images'] = images
+          .map((image) => image is String ? _resolveImageUrl(image) : image)
+          .toList();
+    }
+    final legacyImage = normalized['image_url'];
+    if (legacyImage is String) {
+      normalized['image_url'] = _resolveImageUrl(legacyImage);
+    }
+    return Room.fromJson(normalized);
+  }
+
+  Map<String, dynamic> _inputJson(RoomInput input) {
+    final body = input.toJson();
+    final images = body['images'];
+    if (images is List) {
+      body['images'] = images
+          .map((image) => image is String ? _imageUrlForApi(image) : image)
+          .toList();
+    }
+    return body;
+  }
+
+  String _resolveImageUrl(String imageUrl) {
+    final parsed = Uri.tryParse(imageUrl.trim());
+    if (parsed == null || parsed.hasScheme) return imageUrl;
+    return Uri.parse('$_baseUrl/').resolveUri(parsed).toString();
+  }
+
+  String _imageUrlForApi(String imageUrl) {
+    final parsed = Uri.tryParse(imageUrl.trim());
+    final base = Uri.parse(_baseUrl);
+    if (parsed == null || !parsed.hasScheme) return imageUrl;
+
+    final isOwnUpload =
+        parsed.scheme == base.scheme &&
+        parsed.host == base.host &&
+        parsed.port == base.port &&
+        parsed.path.startsWith('/uploads/rooms/');
+    return isOwnUpload ? parsed.path : imageUrl;
   }
 
   Future<Map<String, dynamic>> _request(

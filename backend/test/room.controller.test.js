@@ -306,6 +306,30 @@ test("createRoom từ chối URL ảnh không hợp lệ", async () => {
     assert.match(nextError.message, /URL ảnh/);
 });
 
+test("createRoom chấp nhận đường dẫn ảnh do backend đã upload", async () => {
+    let receivedPayload;
+    roomService.createRoom = async (payload) => {
+        receivedPayload = payload;
+        return { id: 10, ...payload };
+    };
+
+    const req = {
+        body: {
+            ...validRoomBody({ room_number: "P403", room_name: "Phòng P403" }),
+            images: ["/uploads/rooms/123-test-id.png"]
+        }
+    };
+    const res = createResponse();
+    let nextError;
+
+    await roomController.createRoom(req, res, (error) => {
+        nextError = error;
+    });
+
+    assert.equal(nextError, undefined);
+    assert.deepEqual(receivedPayload.images, ["/uploads/rooms/123-test-id.png"]);
+});
+
 test("createRoom từ chối mã hoặc tên chỉ chứa khoảng trắng", async () => {
     for (const body of [
         validRoomBody({ room_number: "   " }),

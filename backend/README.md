@@ -32,6 +32,7 @@ Server mặc định chạy tại `http://localhost:3000`.
 | `GET` | `/api/rooms` | Danh sách phòng |
 | `GET` | `/api/rooms?status=available` | Lọc phòng theo trạng thái |
 | `GET` | `/api/rooms/:id` | Chi tiết phòng |
+| `POST` | `/api/rooms/images` | Upload một ảnh phòng (`multipart/form-data`, trường `image`) |
 | `POST` | `/api/rooms` | Thêm phòng |
 | `PUT` | `/api/rooms/:id` | Sửa thông tin phòng |
 | `PUT` | `/api/rooms/:id/status` | Cập nhật trạng thái |
@@ -49,6 +50,9 @@ sang `available`, `maintenance` hoặc `inactive`.
 
 Payload tạo/sửa phòng hỗ trợ `room_number`, `room_name`, `floor`, `area`,
 `price`, `deposit`, `status`, `description` và `images` (mảng tối đa 10 URL).
+URL trong `images` có thể là URL ảnh mạng hoặc URL được trả về sau khi gọi API
+upload. Ảnh upload hỗ trợ JPG, JPEG, PNG, WEBP, GIF, AVIF, tối đa 5 MB mỗi ảnh;
+file được lưu trong `uploads/rooms` và phục vụ công khai qua đường dẫn `/uploads/rooms/...`.
 Mọi request sửa phòng hoặc đổi trạng thái phải gửi `expected_version` lấy từ lần đọc
 phòng gần nhất. Backend trả `409` nếu một người khác đã cập nhật phòng trước đó.
 

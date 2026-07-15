@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/room.dart';
 import '../services/room_api_service.dart';
@@ -26,8 +27,10 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
   late final TextEditingController _depositController;
   late final TextEditingController _descriptionController;
   late final List<TextEditingController> _imageControllers;
+  final ImagePicker _imagePicker = ImagePicker();
   late RoomStatus _status;
   bool _saving = false;
+  bool _uploadingImages = false;
 
   @override
   void initState() {
@@ -85,8 +88,106 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
     setState(() {});
   }
 
+  int get _filledImageCount => _imageControllers
+      .where((controller) => controller.text.trim().isNotEmpty)
+      .length;
+
+  void _insertUploadedImage(String imageUrl) {
+    final emptyIndex = _imageControllers.indexWhere(
+      (controller) => controller.text.trim().isEmpty,
+    );
+    setState(() {
+      if (emptyIndex >= 0) {
+        _imageControllers[emptyIndex].text = imageUrl;
+      } else if (_imageControllers.length < 10) {
+        _imageControllers.add(TextEditingController(text: imageUrl));
+      }
+    });
+  }
+
+  void _showImageMessage(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? Colors.red.shade700 : Colors.green.shade700,
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImages() async {
+    if (_saving || _uploadingImages) return;
+
+    final remaining = 10 - _filledImageCount;
+    if (remaining <= 0) {
+      _showImageMessage('Mỗi phòng chỉ được có tối đa 10 ảnh.', error: true);
+      return;
+    }
+
+    late final List<XFile> selectedImages;
+    try {
+      selectedImages = await _imagePicker.pickMultiImage();
+    } on PlatformException catch (error) {
+      _showImageMessage(
+        error.message ?? 'Không thể mở thư viện ảnh trên thiết bị.',
+        error: true,
+      );
+      return;
+    } catch (_) {
+      _showImageMessage(
+        'Không thể mở thư viện ảnh trên thiết bị.',
+        error: true,
+      );
+      return;
+    }
+
+    if (!mounted || selectedImages.isEmpty) return;
+
+    final imagesToUpload = selectedImages.take(remaining).toList();
+    var uploadedCount = 0;
+    var failedCount = 0;
+    setState(() => _uploadingImages = true);
+
+    try {
+      for (final image in imagesToUpload) {
+        try {
+          final length = await image.length();
+          if (length > 5 * 1024 * 1024) {
+            failedCount++;
+            continue;
+          }
+          final imageUrl = await widget.roomService.uploadRoomImage(
+            filename: image.name,
+            bytes: await image.readAsBytes(),
+          );
+          if (!mounted) return;
+          _insertUploadedImage(imageUrl);
+          uploadedCount++;
+        } catch (_) {
+          failedCount++;
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingImages = false);
+    }
+
+    if (!mounted) return;
+    final ignoredCount = selectedImages.length - imagesToUpload.length;
+    if (uploadedCount > 0 && failedCount == 0 && ignoredCount == 0) {
+      _showImageMessage('Đã tải lên $uploadedCount ảnh.');
+      return;
+    }
+
+    final details = <String>[
+      if (uploadedCount > 0) '$uploadedCount ảnh đã tải lên',
+      if (failedCount > 0) '$failedCount ảnh lỗi hoặc lớn hơn 5 MB',
+      if (ignoredCount > 0) '$ignoredCount ảnh vượt giới hạn 10 ảnh',
+    ];
+    _showImageMessage(details.join(', '), error: failedCount > 0);
+  }
+
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _uploadingImages) return;
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
@@ -362,7 +463,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                       title: 'Ảnh chi tiết',
                       children: [
                         const Text(
-                          'Thêm tối đa 10 URL ảnh. Ảnh đầu tiên là ảnh đại diện.',
+                          'Tải ảnh từ máy hoặc dán URL ảnh mạng. Tối đa 10 ảnh, mỗi ảnh tải lên không quá 5 MB. Ảnh đầu tiên là ảnh đại diện.',
                           style: TextStyle(color: Color(0xFF667085)),
                         ),
                         const SizedBox(height: 14),
@@ -378,6 +479,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                                 child: TextFormField(
                                   controller: _imageControllers[index],
                                   validator: _imageUrl,
+                                  onChanged: (_) => setState(() {}),
                                   keyboardType: TextInputType.url,
                                   decoration: InputDecoration(
                                     labelText: 'Ảnh ${index + 1}',
@@ -401,19 +503,39 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                             const SizedBox(height: 12),
                         ],
                         const SizedBox(height: 14),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            onPressed: _imageControllers.length >= 10
-                                ? null
-                                : _addImageField,
-                            icon: const Icon(
-                              Icons.add_photo_alternate_outlined,
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed:
+                                  _uploadingImages || _filledImageCount >= 10
+                                  ? null
+                                  : _pickAndUploadImages,
+                              icon: _uploadingImages
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.upload_file_outlined),
+                              label: Text(
+                                _uploadingImages
+                                    ? 'Đang tải ảnh...'
+                                    : 'Tải ảnh từ máy',
+                              ),
                             ),
-                            label: Text(
-                              'Thêm ảnh (${_imageControllers.length}/10)',
+                            OutlinedButton.icon(
+                              onPressed: _imageControllers.length >= 10
+                                  ? null
+                                  : _addImageField,
+                              icon: const Icon(Icons.add_link_outlined),
+                              label: Text(
+                                'Thêm URL ảnh ($_filledImageCount/10)',
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -439,14 +561,14 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
-                          onPressed: _saving
+                          onPressed: _saving || _uploadingImages
                               ? null
                               : () => Navigator.pop(context),
                           child: const Text('Hủy'),
                         ),
                         const SizedBox(width: 12),
                         FilledButton.icon(
-                          onPressed: _saving ? null : _save,
+                          onPressed: _saving || _uploadingImages ? null : _save,
                           icon: _saving
                               ? const SizedBox.square(
                                   dimension: 18,

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("node:path");
 const { pool, connectDB } = require("./src/config/db");
 const roomRoutes = require("./src/modules/rooms/room.route");
 const { ensureRoomSoftDeleteSchema } = require("./src/modules/rooms/room.service");
@@ -27,6 +28,14 @@ app.use(
     })
 );
 app.use(express.json({ limit: "100kb" }));
+app.use(
+    "/uploads",
+    express.static(path.join(__dirname, "uploads"), {
+        dotfiles: "deny",
+        index: false,
+        maxAge: "1d"
+    })
+);
 
 app.get("/health", async (req, res, next) => {
     try {

@@ -326,6 +326,25 @@ void main() {
     expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
   });
 
+  testWidgets('form giữ cả lựa chọn tải ảnh máy và nhập URL mạng', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: RoomFormScreen(roomService: _FakeRoomApiService())),
+    );
+
+    await tester.fling(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -2500),
+      3000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tải ảnh từ máy'), findsOneWidget);
+    expect(find.textContaining('Thêm URL ảnh'), findsOneWidget);
+    expect(find.textContaining('dán URL ảnh mạng'), findsOneWidget);
+  });
+
   test('đọc dữ liệu phòng trả về từ API', () {
     final room = Room.fromJson({
       'id': 1,
@@ -460,6 +479,77 @@ void main() {
       expect(updated.version, 2);
       expect(statusUpdated.status, RoomStatus.inactive);
       expect(requests.length, 6);
+    },
+  );
+
+  test(
+    'RoomApiService upload multipart và đổi đường dẫn ảnh thành URL',
+    () async {
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/rooms/images');
+        expect(
+          request.headers['content-type'],
+          startsWith('multipart/form-data; boundary='),
+        );
+        return _jsonResponse({
+          'success': true,
+          'data': {'image_url': '/uploads/rooms/test.png'},
+        }, statusCode: 201);
+      });
+      final service = RoomApiService(
+        client: client,
+        baseUrl: 'http://localhost:3000',
+      );
+
+      final imageUrl = await service.uploadRoomImage(
+        filename: 'test.png',
+        bytes: const [0x89, 0x50, 0x4e, 0x47],
+      );
+
+      expect(imageUrl, 'http://localhost:3000/uploads/rooms/test.png');
+    },
+  );
+
+  test(
+    'RoomApiService lưu ảnh backend dạng đường dẫn dùng chung thiết bị',
+    () async {
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['images'], [
+          '/uploads/rooms/local.png',
+          'https://example.com/remote.jpg',
+        ]);
+        return _jsonResponse({
+          'success': true,
+          'data': {
+            ..._roomJson(),
+            'images': ['/uploads/rooms/local.png'],
+          },
+        }, statusCode: 201);
+      });
+      final service = RoomApiService(
+        client: client,
+        baseUrl: 'http://localhost:3000',
+      );
+
+      final room = await service.createRoom(
+        RoomInput(
+          roomNumber: 'A101',
+          roomName: 'Phòng A101',
+          floor: 1,
+          area: 25,
+          price: 3000000,
+          deposit: 3000000,
+          status: RoomStatus.available,
+          images: const [
+            'http://localhost:3000/uploads/rooms/local.png',
+            'https://example.com/remote.jpg',
+          ],
+        ),
+      );
+
+      expect(room.images, ['http://localhost:3000/uploads/rooms/local.png']);
     },
   );
 }

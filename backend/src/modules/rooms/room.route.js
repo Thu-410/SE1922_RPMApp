@@ -1,9 +1,11 @@
 const express = require("express");
 const roomController = require("./room.controller");
+const { uploadRoomImageFile } = require("./room-upload");
 
 const router = express.Router();
 
 router.get("/", roomController.listRooms);
+router.post("/images", uploadRoomImageFile, roomController.uploadRoomImage);
 router.get("/:id", roomController.getRoomDetail);
 router.post("/", roomController.createRoom);
 router.put("/:id", roomController.updateRoom);

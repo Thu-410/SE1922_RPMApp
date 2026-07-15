@@ -1,4 +1,5 @@
 const roomService = require("./room.service");
+const { saveRoomImage } = require("./room-upload");
 
 const ROOM_STATUSES = ["available", "occupied", "maintenance", "inactive"];
 const ROOM_FIELDS = [
@@ -61,6 +62,9 @@ const isSupportedImageUrl = (url) => {
     );
 };
 
+const isStoredRoomImagePath = (value) =>
+    /^\/uploads\/rooms\/[a-zA-Z0-9-]+\.(?:jpg|jpeg|png|webp|gif|avif)$/.test(value);
+
 const normalizeImages = (value) => {
     if (!Array.isArray(value)) {
         throw new HttpError(400, "Danh sách ảnh phòng phải là một mảng.");
@@ -77,6 +81,11 @@ const normalizeImages = (value) => {
         const image = rawImage.trim();
         if (image.length > 500) {
             throw new HttpError(400, "URL ảnh không được vượt quá 500 ký tự.");
+        }
+
+        if (isStoredRoomImagePath(image)) {
+            if (!images.includes(image)) images.push(image);
+            continue;
         }
 
         let url;
@@ -242,6 +251,23 @@ const createRoom = async (req, res, next) => {
     }
 };
 
+const uploadRoomImage = async (req, res, next) => {
+    try {
+        if (!req.file) {
+            throw new HttpError(400, "Vui lòng chọn một tệp ảnh để tải lên.");
+        }
+
+        const imageUrl = await saveRoomImage(req.file.buffer);
+        res.status(201).json({
+            success: true,
+            message: "Tải ảnh lên thành công.",
+            data: { image_url: imageUrl }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const updateRoom = async (req, res, next) => {
     try {
         const id = parseId(req.params.id);
@@ -325,6 +351,7 @@ const deleteRoom = async (req, res, next) => {
 module.exports = {
     listRooms,
     getRoomDetail,
+    uploadRoomImage,
     createRoom,
     updateRoom,
     updateRoomStatus,

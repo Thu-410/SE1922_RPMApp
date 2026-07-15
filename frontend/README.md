@@ -12,6 +12,13 @@ flutter pub get
 flutter run
 ```
 
+Form phòng cho phép chọn nhiều ảnh từ máy hoặc tiếp tục dán URL ảnh mạng. Mỗi phòng
+có tối đa 10 ảnh và mỗi file tải lên không quá 5 MB. Backend phải đang chạy để upload.
+Tính năng chọn ảnh hỗ trợ Android 7.0 (API 24) trở lên.
+
+Trên Windows, nếu Flutter báo plugin cần quyền tạo symbolic link, bật **Developer Mode**
+trong Windows Settings rồi chạy lại `flutter pub get`.
+
 Địa chỉ API mặc định:
 
 - Android emulator: `http://10.0.2.2:3000`
