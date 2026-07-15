@@ -31,7 +31,11 @@ class ApiClient {
     Map<String, dynamic>? body,
   }) async {
     final token = await TokenStorage.readAccessToken();
-    final uri = Uri.parse('${ApiConstants.baseUrl}$path').replace(
+    final savedBaseUrl = await TokenStorage.readApiBaseUrl();
+    final baseUrl = savedBaseUrl?.trim().isNotEmpty == true
+        ? savedBaseUrl!.trim()
+        : ApiConstants.defaultBaseUrl;
+    final uri = Uri.parse('$baseUrl$path').replace(
       queryParameters: query?.map(
         (key, value) => MapEntry(key, value.toString()),
       ),
@@ -80,7 +84,7 @@ class ApiClient {
       throw const ApiException('Phản hồi từ máy chủ không đúng định dạng');
     } catch (_) {
       throw const ApiException(
-        'Không thể kết nối máy chủ. Kiểm tra backend và địa chỉ 192.168.1.7.',
+        'Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.',
       );
     }
   }

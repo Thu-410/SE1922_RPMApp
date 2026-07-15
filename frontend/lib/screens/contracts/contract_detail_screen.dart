@@ -90,6 +90,19 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     }
   }
 
+  Future<void> _activate(RentalContract contract) async {
+    try {
+      await _service.activate(contract.id);
+      _reload();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$error')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<RentalContract>(
     future: _future,
@@ -125,7 +138,15 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                       ),
                     ),
                   ),
-                  if (widget.canManage && c.status == 'active') ...[
+            if (widget.canManage && c.status == 'pending') ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => _activate(c),
+                icon: const Icon(Icons.play_circle_outline),
+                label: const Text('Kích hoạt hợp đồng'),
+              ),
+            ],
+            if (widget.canManage && c.status == 'active') ...[
                     const SizedBox(height: 12),
                     FilledButton.tonalIcon(
                       onPressed: () => _extend(c),

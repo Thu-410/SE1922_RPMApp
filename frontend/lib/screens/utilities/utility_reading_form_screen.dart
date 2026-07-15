@@ -139,7 +139,9 @@ class _UtilityReadingFormScreenState extends State<UtilityReadingFormScreen> {
                         .map(
                           (room) => DropdownMenuItem(
                             value: room.id,
-                            child: Text('${room.roomNumber} · ${room.status}'),
+                            child: Text(
+                              '${room.roomNumber} · ${_roomStatus(room.status)}',
+                            ),
                           ),
                         )
                         .toList(),
@@ -284,4 +286,12 @@ class _UtilityReadingFormScreenState extends State<UtilityReadingFormScreen> {
             ),
     );
   }
+
+  String _roomStatus(String status) => switch (status) {
+    'available' => 'Còn trống',
+    'occupied' => 'Đang thuê',
+    'maintenance' => 'Bảo trì',
+    'inactive' => 'Ngừng hoạt động',
+    _ => status,
+  };
 }

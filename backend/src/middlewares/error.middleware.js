@@ -9,17 +9,14 @@ const notFoundHandler = (req, res) => {
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (error, req, res, next) => {
   const statusCode = error.statusCode || error.status || 500;
-  const isProduction = process.env.NODE_ENV === 'production';
-
   console.error(error);
 
   res.status(statusCode).json({
     success: false,
-    message: statusCode === 500 && isProduction
+    message: statusCode === 500
       ? 'Internal server error'
       : error.message || 'Internal server error',
     ...(error.errors ? { errors: error.errors } : {}),
-    ...(!isProduction && error.stack ? { stack: error.stack } : {}),
   });
 };
 

@@ -7,7 +7,7 @@ const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
 const validatePassword = (password, field = 'password') => {
   if (typeof password !== 'string' || password.length < 6) {
-    throw new AppError(400, `${field} must contain at least 6 characters`);
+    throw new AppError(400, `${field === 'password' ? 'Mật khẩu' : 'Mật khẩu mới'} phải có ít nhất 6 ký tự`);
   }
 };
 
@@ -26,7 +26,7 @@ const verifyAndUpgradePassword = async (user, password) => {
 
 const login = async ({ email, password }) => {
   const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail || !password) throw new AppError(400, 'Email and password are required');
+  if (!normalizedEmail || !password) throw new AppError(400, 'Email và mật khẩu là bắt buộc');
 
   const [rows] = await pool.execute(
     `SELECT u.id, u.full_name, u.email, u.phone, u.password, u.status,
@@ -67,7 +67,7 @@ const register = async ({ full_name: fullName, email, password, phone }) => {
     const [duplicates] = await connection.execute('SELECT id FROM users WHERE email = ? LIMIT 1', [normalizedEmail]);
     if (duplicates.length > 0) throw new AppError(409, 'Email đã tồn tại');
     const [roles] = await connection.execute("SELECT id FROM roles WHERE name = 'tenant' LIMIT 1");
-    if (roles.length === 0) throw new AppError(500, 'Tenant role is not configured');
+    if (roles.length === 0) throw new AppError(500, 'Vai trò người thuê chưa được cấu hình');
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await connection.execute(
@@ -76,7 +76,7 @@ const register = async ({ full_name: fullName, email, password, phone }) => {
     );
     await connection.execute(
       `INSERT INTO tenants (user_id, full_name, phone, email, is_representative, status)
-       VALUES (?, ?, ?, ?, TRUE, 'active')`,
+       VALUES (?, ?, ?, ?, FALSE, 'active')`,
       [result.insertId, fullName.trim(), phone.trim(), normalizedEmail],
     );
     await connection.commit();
@@ -106,8 +106,18 @@ const updateProfile = async (userId, { full_name: fullName, phone }) => {
   if (!String(fullName || '').trim() || !String(phone || '').trim()) {
     throw new AppError(400, 'Họ tên và số điện thoại là bắt buộc');
   }
-  await pool.execute('UPDATE users SET full_name = ?, phone = ? WHERE id = ?', [fullName.trim(), phone.trim(), userId]);
-  await pool.execute('UPDATE tenants SET full_name = ?, phone = ? WHERE user_id = ?', [fullName.trim(), phone.trim(), userId]);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute('UPDATE users SET full_name = ?, phone = ? WHERE id = ?', [fullName.trim(), phone.trim(), userId]);
+    await connection.execute('UPDATE tenants SET full_name = ?, phone = ? WHERE user_id = ?', [fullName.trim(), phone.trim(), userId]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
   return getProfile(userId);
 };
 

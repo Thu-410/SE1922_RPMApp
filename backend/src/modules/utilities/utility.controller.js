@@ -23,21 +23,21 @@ const getReading = async (req, res, next) => {
 const createReading = async (req, res, next) => {
   try {
     const data = await utilityService.createReading({ ...req.body, createdBy: req.user.id });
-    res.status(201).json({ success: true, message: 'Utility reading created successfully', data });
+    res.status(201).json({ success: true, message: 'Ghi chỉ số thành công', data });
   } catch (error) { next(error); }
 };
 
 const updateReading = async (req, res, next) => {
   try {
     const data = await utilityService.updateReading(req.params.id, req.body);
-    res.json({ success: true, message: 'Utility reading updated successfully', data });
+    res.json({ success: true, message: 'Cập nhật chỉ số thành công', data });
   } catch (error) { next(error); }
 };
 
 const deleteReading = async (req, res, next) => {
   try {
     await utilityService.deleteReading(req.params.id);
-    res.json({ success: true, message: 'Utility reading deleted successfully' });
+    res.json({ success: true, message: 'Xóa chỉ số thành công' });
   } catch (error) { next(error); }
 };
 
@@ -62,14 +62,14 @@ const getPrice = async (req, res, next) => {
 const createPrice = async (req, res, next) => {
   try {
     const data = await servicePriceService.createPrice(req.body);
-    res.status(201).json({ success: true, message: 'Service price created successfully', data });
+    res.status(201).json({ success: true, message: 'Tạo bảng giá thành công', data });
   } catch (error) { next(error); }
 };
 
 const updatePrice = async (req, res, next) => {
   try {
     const data = await servicePriceService.updatePrice(req.params.id, req.body);
-    res.json({ success: true, message: 'Service price updated successfully', data });
+    res.json({ success: true, message: 'Cập nhật bảng giá thành công', data });
   } catch (error) { next(error); }
 };
 

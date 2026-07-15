@@ -31,6 +31,11 @@ class ContractService {
             ))['data']
             as Map<String, dynamic>,
       );
+
+  Future<RentalContract> activate(int id) async => RentalContract.fromJson(
+    (await apiClient.put('/contracts/$id/activate'))['data']
+        as Map<String, dynamic>,
+  );
   Future<RentalContract> terminate(int id) async => RentalContract.fromJson(
     (await apiClient.put('/contracts/$id/terminate'))['data']
         as Map<String, dynamic>,

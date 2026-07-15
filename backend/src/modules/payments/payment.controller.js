@@ -25,7 +25,7 @@ const createPayment = async (req, res, next) => {
       req.params.invoiceId || req.params.id,
       { ...req.body, createdBy: req.user.id },
     );
-    res.status(201).json({ success: true, message: 'Payment confirmed successfully', data });
+    res.status(201).json({ success: true, message: 'Xác nhận thanh toán thành công', data });
   } catch (error) { next(error); }
 };
 

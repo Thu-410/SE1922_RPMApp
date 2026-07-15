@@ -156,8 +156,6 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                   : 'Chọn ảnh khác',
             ),
           ),
-          const SizedBox(height: 12),
-          _field('image_url', 'Đường dẫn ảnh'),
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: _saving ? null : _save,

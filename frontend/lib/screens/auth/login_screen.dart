@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
 import '../../services/auth_service.dart';
+import '../settings/server_config_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -73,6 +73,21 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final error = _error ?? widget.errorMessage;
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            tooltip: 'Cấu hình máy chủ',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ServerConfigScreen(apiClient: widget.apiClient),
+              ),
+            ),
+            icon: const Icon(Icons.settings_ethernet),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -184,12 +199,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextButton(
                           onPressed: _submitting ? null : _openRegister,
                           child: const Text('Chưa có tài khoản? Đăng ký'),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Máy chủ: ${ApiConstants.baseUrl}',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),

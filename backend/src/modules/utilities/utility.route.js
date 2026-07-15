@@ -5,11 +5,12 @@ const authorizeRoles = require('../../middlewares/role.middleware');
 
 const utilityReadingRouter = express.Router();
 utilityReadingRouter.use(authenticate);
+utilityReadingRouter.use(authorizeRoles('manager', 'staff'));
 utilityReadingRouter.get('/', controller.listReadings);
-utilityReadingRouter.get('/room-options', authorizeRoles('manager', 'staff'), controller.getRoomOptions);
+utilityReadingRouter.get('/room-options', controller.getRoomOptions);
 utilityReadingRouter.get('/:id', controller.getReading);
-utilityReadingRouter.post('/', authorizeRoles('manager', 'staff'), controller.createReading);
-utilityReadingRouter.put('/:id', authorizeRoles('manager', 'staff'), controller.updateReading);
+utilityReadingRouter.post('/', controller.createReading);
+utilityReadingRouter.put('/:id', controller.updateReading);
 utilityReadingRouter.delete('/:id', authorizeRoles('manager'), controller.deleteReading);
 
 const servicePriceRouter = express.Router();

@@ -3,14 +3,14 @@ const invoiceService = require('./invoice.service');
 const previewInvoice = async (req, res, next) => {
   try {
     const data = await invoiceService.previewInvoice(req.body);
-    res.json({ success: true, message: 'Invoice preview calculated successfully', data });
+    res.json({ success: true, message: 'Đã tính thử hóa đơn', data });
   } catch (error) { next(error); }
 };
 
 const createInvoice = async (req, res, next) => {
   try {
     const data = await invoiceService.createInvoice({ ...req.body, createdBy: req.user.id });
-    res.status(201).json({ success: true, message: 'Invoice created successfully', data });
+    res.status(201).json({ success: true, message: 'Tạo hóa đơn thành công', data });
   } catch (error) { next(error); }
 };
 
@@ -30,21 +30,21 @@ const getInvoice = async (req, res, next) => {
 const updateInvoice = async (req, res, next) => {
   try {
     const data = await invoiceService.updateInvoice(req.params.id, req.body);
-    res.json({ success: true, message: 'Invoice updated and recalculated successfully', data });
+    res.json({ success: true, message: 'Cập nhật và tính lại hóa đơn thành công', data });
   } catch (error) { next(error); }
 };
 
 const cancelInvoice = async (req, res, next) => {
   try {
     const data = await invoiceService.cancelInvoice(req.params.id, req.body);
-    res.json({ success: true, message: 'Invoice cancelled successfully', data });
+    res.json({ success: true, message: 'Hủy hóa đơn thành công', data });
   } catch (error) { next(error); }
 };
 
 const markOverdueInvoices = async (req, res, next) => {
   try {
     const data = await invoiceService.markOverdueInvoices();
-    res.json({ success: true, message: 'Overdue invoice statuses synchronized successfully', data });
+    res.json({ success: true, message: 'Đã cập nhật các hóa đơn quá hạn', data });
   } catch (error) { next(error); }
 };
 

@@ -23,7 +23,38 @@ const getById = async (value, executor = pool) => {
   return rows[0];
 };
 
+const expireDueContracts = async () => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [contracts] = await connection.execute(
+      "SELECT id,room_id,tenant_id FROM contracts WHERE status='active' AND end_date<CURDATE() FOR UPDATE",
+    );
+    for (const contract of contracts) {
+      await connection.execute("UPDATE contracts SET status='expired' WHERE id=?", [contract.id]);
+      const [[remaining]] = await connection.execute(
+        "SELECT COUNT(*) total FROM contracts WHERE tenant_id=? AND status='active'",
+        [contract.tenant_id],
+      );
+      if (remaining.total === 0) {
+        await connection.execute(
+          "UPDATE tenants SET room_id=NULL,status='left',is_representative=FALSE WHERE id=?",
+          [contract.tenant_id],
+        );
+      }
+      await syncRoom(contract.room_id, connection);
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 const list = async (query) => {
+  await expireDueContracts();
   const conditions = [];
   const params = [];
   if (query.status) {
@@ -96,6 +127,29 @@ const extend = async (value, body) => {
   finally { connection.release(); }
 };
 
+const activate = async (value) => {
+  const id = parseId(value);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const contract = await getById(id, connection);
+    if (contract.status !== 'pending') throw new AppError(409, 'Chỉ có thể kích hoạt hợp đồng đang chờ');
+    if (contract.end_date < new Date().toISOString().slice(0, 10)) throw new AppError(409, 'Không thể kích hoạt hợp đồng đã quá ngày kết thúc');
+    const [[room]] = await connection.execute('SELECT status FROM rooms WHERE id=? FOR UPDATE', [contract.room_id]);
+    if (['maintenance', 'inactive'].includes(room.status)) throw new AppError(409, 'Phòng đang bảo trì hoặc ngừng hoạt động');
+    const [[roomConflict]] = await connection.execute("SELECT COUNT(*) total FROM contracts WHERE room_id=? AND status='active' AND id<>?", [contract.room_id, id]);
+    const [[tenantConflict]] = await connection.execute("SELECT COUNT(*) total FROM contracts WHERE tenant_id=? AND status='active' AND id<>?", [contract.tenant_id, id]);
+    if (roomConflict.total > 0) throw new AppError(409, 'Phòng đã có hợp đồng đang hoạt động');
+    if (tenantConflict.total > 0) throw new AppError(409, 'Người thuê đã có hợp đồng đang hoạt động');
+    await connection.execute("UPDATE contracts SET status='active' WHERE id=?", [id]);
+    await connection.execute("UPDATE tenants SET room_id=?,status='active' WHERE id=?", [contract.room_id, contract.tenant_id]);
+    await syncRoom(contract.room_id, connection);
+    await connection.commit();
+    return getById(id);
+  } catch (error) { await connection.rollback(); throw error; }
+  finally { connection.release(); }
+};
+
 const terminate = async (value) => {
   const id = parseId(value);
   const connection = await pool.getConnection();
@@ -115,4 +169,4 @@ const terminate = async (value) => {
   finally { connection.release(); }
 };
 
-module.exports = { list, getById, create, extend, terminate };
+module.exports = { list, getById, create, extend, activate, terminate };

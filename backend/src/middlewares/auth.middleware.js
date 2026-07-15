@@ -12,8 +12,8 @@ const getBearerToken = (authorizationHeader) => {
 const authenticate = async (req, res, next) => {
   try {
     const token = getBearerToken(req.headers.authorization);
-    if (!token) throw new AppError(401, 'Authentication token is required');
-    if (!process.env.JWT_SECRET) throw new AppError(500, 'JWT_SECRET is not configured');
+    if (!token) throw new AppError(401, 'Vui lòng đăng nhập để tiếp tục');
+    if (!process.env.JWT_SECRET) throw new AppError(500, 'Máy chủ chưa được cấu hình xác thực');
 
     let payload;
     try {
@@ -22,12 +22,12 @@ const authenticate = async (req, res, next) => {
         issuer: process.env.JWT_ISSUER || 'rental-management-api',
       });
     } catch (error) {
-      if (error.name === 'TokenExpiredError') throw new AppError(401, 'Authentication token has expired');
-      throw new AppError(401, 'Authentication token is invalid');
+      if (error.name === 'TokenExpiredError') throw new AppError(401, 'Phiên đăng nhập đã hết hạn');
+      throw new AppError(401, 'Phiên đăng nhập không hợp lệ');
     }
 
     const userId = Number(payload.sub ?? payload.userId ?? payload.id);
-    if (!Number.isInteger(userId) || userId <= 0) throw new AppError(401, 'Authentication token is invalid');
+    if (!Number.isInteger(userId) || userId <= 0) throw new AppError(401, 'Phiên đăng nhập không hợp lệ');
 
     const [users] = await pool.execute(
       `SELECT u.id, u.full_name, u.email, u.phone, u.status,
@@ -38,8 +38,8 @@ const authenticate = async (req, res, next) => {
        LIMIT 1`,
       [userId],
     );
-    if (users.length === 0) throw new AppError(401, 'User account no longer exists');
-    if (users[0].status !== 'active') throw new AppError(403, 'User account is not active');
+    if (users.length === 0) throw new AppError(401, 'Tài khoản không còn tồn tại');
+    if (users[0].status !== 'active') throw new AppError(403, 'Tài khoản đã bị ngừng hoạt động');
 
     req.user = users[0];
     req.auth = payload;

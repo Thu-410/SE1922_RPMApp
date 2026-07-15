@@ -7,5 +7,6 @@ router.get('/', authorizeRoles('manager', 'staff'), controller.list);
 router.get('/:id', authorizeRoles('manager', 'staff'), controller.getById);
 router.post('/', authorizeRoles('manager'), controller.create);
 router.put('/:id/extend', authorizeRoles('manager'), controller.extend);
+router.put('/:id/activate', authorizeRoles('manager'), controller.activate);
 router.put('/:id/terminate', authorizeRoles('manager'), controller.terminate);
 module.exports = router;
