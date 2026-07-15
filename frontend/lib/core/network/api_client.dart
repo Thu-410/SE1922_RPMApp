@@ -80,7 +80,7 @@ class ApiClient {
       throw const ApiException('Phản hồi từ máy chủ không đúng định dạng');
     } catch (_) {
       throw const ApiException(
-        'Không thể kết nối máy chủ. Kiểm tra backend và địa chỉ 10.33.59.217.',
+        'Không thể kết nối máy chủ. Kiểm tra backend và địa chỉ 192.168.1.7.',
       );
     }
   }

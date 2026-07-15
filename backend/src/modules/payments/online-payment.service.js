@@ -45,7 +45,7 @@ const createVnpay = async (invoice, ipAddress) => {
     vnp_IpAddr: ipAddress || '127.0.0.1',
     vnp_Locale: 'vn',
     vnp_OrderInfo: `Thanh toan hoa don ${invoice.id} phong ${invoice.room_number}`,
-    vnp_OrderType: 'other',
+    vnp_OrderType: 'billpayment',
     vnp_ReturnUrl: `${publicUrl()}/api/online-payments/vnpay/return`,
     vnp_TmnCode: process.env.VNPAY_TMN_CODE,
     vnp_TxnRef: reference,

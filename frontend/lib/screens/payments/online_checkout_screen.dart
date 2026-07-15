@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -23,6 +26,8 @@ class OnlineCheckoutScreen extends StatefulWidget {
 
 class _OnlineCheckoutScreenState extends State<OnlineCheckoutScreen>
     with WidgetsBindingObserver {
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
   String? _openingProvider;
   bool _checking = false;
   bool _openedGateway = false;
@@ -31,12 +36,42 @@ class _OnlineCheckoutScreenState extends State<OnlineCheckoutScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _appLinks = AppLinks();
+    _linkSubscription = _appLinks.uriLinkStream.listen(_handleReturnLink);
+    _handleInitialLink();
+  }
+
+  Future<void> _handleInitialLink() async {
+    final uri = await _appLinks.getInitialLink();
+    if (uri != null && mounted) {
+      _handleReturnLink(uri);
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _linkSubscription?.cancel();
     super.dispose();
+  }
+
+  void _handleReturnLink(Uri uri) {
+    if (uri.scheme != 'vnpaypayment' || uri.host != 'return') return;
+    if (uri.queryParameters['invoiceId'] != widget.invoice.id.toString()) {
+      return;
+    }
+    final successful =
+        uri.queryParameters['responseCode'] == '00' &&
+        uri.queryParameters['transactionStatus'] == '00';
+    if (!successful) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Giao dịch VNPay không thành công hoặc đã bị hủy.'),
+        ),
+      );
+      return;
+    }
+    _checkPayment(retries: 5);
   }
 
   @override
@@ -68,15 +103,22 @@ class _OnlineCheckoutScreenState extends State<OnlineCheckoutScreen>
     }
   }
 
-  Future<void> _checkPayment() async {
+  Future<void> _checkPayment({int retries = 1}) async {
     if (_checking) return;
     setState(() => _checking = true);
     try {
-      final invoice = await InvoiceService(
-        widget.apiClient,
-      ).getMyInvoice(widget.invoice.id);
+      Invoice? invoice;
+      for (var attempt = 0; attempt < retries; attempt++) {
+        invoice = await InvoiceService(
+          widget.apiClient,
+        ).getMyInvoice(widget.invoice.id);
+        if (invoice.status == 'paid') break;
+        if (attempt < retries - 1) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+        }
+      }
       if (!mounted) return;
-      if (invoice.status == 'paid') {
+      if (invoice?.status == 'paid') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Thanh toán đã được xác nhận thành công'),
@@ -135,30 +177,17 @@ class _OnlineCheckoutScreenState extends State<OnlineCheckoutScreen>
           ),
           const SizedBox(height: 18),
           Text(
-            'Chọn cổng thanh toán',
+            'Thanh toán qua VNPay',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           _providerTile(
-            'momo',
-            'Ví MoMo',
-            Icons.account_balance_wallet_rounded,
-            const Color(0xFFA50064),
-          ),
-          _providerTile(
             'vnpay',
             'VNPay',
             Icons.qr_code_2_rounded,
             const Color(0xFF005BAA),
-          ),
-          _providerTile(
-            'paypal',
-            'PayPal',
-            Icons.paypal_rounded,
-            const Color(0xFF003087),
-            subtitle: 'Số tiền được quy đổi từ VND sang USD theo cấu hình',
           ),
           const SizedBox(height: 20),
           OutlinedButton.icon(
