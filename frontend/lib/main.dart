@@ -20,7 +20,6 @@ class RoomManagementApp extends StatelessWidget {
       title: 'Quản lý phòng',
       theme: AppTheme.light,
       home: RoomListScreen(roomService: roomService ?? RoomApiService()),
-      ok
     );
   }
 }
