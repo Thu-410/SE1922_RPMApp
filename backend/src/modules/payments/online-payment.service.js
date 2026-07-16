@@ -137,12 +137,24 @@ const verifyVnpay = (query) => {
 
 const handleVnpayIpn = async (query) => {
   if (!verifyVnpay(query)) return { RspCode: '97', Message: 'Invalid signature' };
+  if (query.vnp_TmnCode !== process.env.VNPAY_TMN_CODE) {
+    return { RspCode: '02', Message: 'Invalid merchant' };
+  }
   if (query.vnp_ResponseCode !== '00' || query.vnp_TransactionStatus !== '00') return { RspCode: '00', Message: 'Payment not successful' };
-  const invoiceId = invoiceIdFromReference(query.vnp_TxnRef);
+  if (!/^\d{1,15}$/.test(String(query.vnp_TransactionNo || ''))) {
+    return { RspCode: '04', Message: 'Invalid transaction number' };
+  }
+  let invoiceId;
+  try {
+    invoiceId = invoiceIdFromReference(query.vnp_TxnRef);
+  } catch (_) {
+    return { RspCode: '01', Message: 'Order not found' };
+  }
   try {
     await paymentService.createPayment(invoiceId, { amount: Number(query.vnp_Amount) / 100, paymentMethod: 'other', transactionCode: `VNPAY-${query.vnp_TransactionNo}`, note: 'Thanh toán trực tuyến qua VNPay' });
     return { RspCode: '00', Message: 'Confirm Success' };
   } catch (error) {
+    if (error.statusCode === 404) return { RspCode: '01', Message: 'Order not found' };
     if (error.statusCode === 409) return { RspCode: '02', Message: 'Order already confirmed' };
     return { RspCode: '04', Message: 'Invalid amount or order' };
   }

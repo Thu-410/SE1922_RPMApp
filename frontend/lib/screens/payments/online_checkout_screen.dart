@@ -202,7 +202,7 @@ class _OnlineCheckoutScreenState extends State<OnlineCheckoutScreen>
           ),
           const SizedBox(height: 12),
           const Text(
-            'Hóa đơn chỉ chuyển sang PAID sau khi backend xác minh phản hồi bảo mật từ cổng thanh toán.',
+            'Hóa đơn chỉ được ghi nhận đã thanh toán sau khi máy chủ xác minh kết quả từ VNPay.',
             textAlign: TextAlign.center,
           ),
         ],
