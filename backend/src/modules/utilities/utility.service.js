@@ -65,7 +65,7 @@ const getRoomOptions = async () => {
   const [rows] = await pool.query(
     `SELECT id, room_number, status, floor
      FROM rooms
-     WHERE status <> 'inactive'
+     WHERE status NOT IN ('inactive', 'deleted')
      ORDER BY floor ASC, room_number ASC`,
   );
   return rows;

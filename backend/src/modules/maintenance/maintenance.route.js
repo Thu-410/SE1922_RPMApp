@@ -8,6 +8,6 @@ router.use(authenticate);
 router.get('/', authorizeRoles('manager', 'staff', 'tenant'), controller.list);
 router.get('/:id', authorizeRoles('manager', 'staff', 'tenant'), controller.getById);
 router.post('/', authorizeRoles('manager', 'staff', 'tenant'), controller.create);
-router.put('/:id/status', authorizeRoles('manager', 'staff'), controller.updateStatus);
+router.put('/:id/status', authorizeRoles('manager', 'staff', 'tenant'), controller.updateStatus);
 
 module.exports = router;

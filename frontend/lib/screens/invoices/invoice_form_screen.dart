@@ -157,7 +157,11 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _rooms
-                        .where((r) => r.status == 'occupied' || r.id == _roomId)
+                        .where(
+                          (r) =>
+                              !['maintenance', 'inactive'].contains(r.status) ||
+                              r.id == _roomId,
+                        )
                         .map(
                           (r) => DropdownMenuItem(
                             value: r.id,

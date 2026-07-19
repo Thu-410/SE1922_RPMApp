@@ -78,7 +78,7 @@ const ensureRoomAssignable = async (roomId, connection) => {
   if (!roomId) return;
   const [rows] = await connection.execute('SELECT id, status FROM rooms WHERE id=? FOR UPDATE', [roomId]);
   if (!rows[0]) throw new AppError(404, 'Không tìm thấy phòng được chọn');
-  if (['maintenance', 'inactive'].includes(rows[0].status)) throw new AppError(409, 'Không thể gán người thuê vào phòng đang bảo trì hoặc ngừng hoạt động');
+  if (['maintenance', 'inactive', 'deleted'].includes(rows[0].status)) throw new AppError(409, 'Không thể gán người thuê vào phòng đang bảo trì, ngừng hoạt động hoặc đã lưu lịch sử');
 };
 
 const syncRoom = async (roomId, connection) => {
@@ -88,7 +88,7 @@ const syncRoom = async (roomId, connection) => {
       (SELECT COUNT(*) FROM tenants WHERE room_id=? AND status='active') +
       (SELECT COUNT(*) FROM contracts WHERE room_id=? AND status='active') AS total`, [roomId, roomId],
   );
-  if (counts[0].total > 0) await connection.execute("UPDATE rooms SET status='occupied' WHERE id=? AND status NOT IN ('maintenance','inactive')", [roomId]);
+  if (counts[0].total > 0) await connection.execute("UPDATE rooms SET status='occupied' WHERE id=? AND status NOT IN ('maintenance','inactive','deleted')", [roomId]);
   else await connection.execute("UPDATE rooms SET status='available' WHERE id=? AND status='occupied'", [roomId]);
 };
 

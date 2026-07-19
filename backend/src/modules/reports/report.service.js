@@ -41,13 +41,14 @@ const occupancy = async () => {
     `SELECT COUNT(*) AS total_rooms,
       SUM(status = 'occupied') AS occupied_rooms, SUM(status = 'available') AS available_rooms,
       SUM(status = 'maintenance') AS maintenance_rooms, SUM(status = 'inactive') AS inactive_rooms
-     FROM rooms`,
+     FROM rooms WHERE status <> 'deleted'`,
   );
   const [rooms] = await pool.execute(
     `SELECT r.id, r.room_number, r.floor, r.area, r.price, r.status,
             GROUP_CONCAT(CASE WHEN t.status = 'active' THEN t.full_name END SEPARATOR ', ') AS tenant_name,
             GROUP_CONCAT(CASE WHEN t.status = 'active' THEN t.phone END SEPARATOR ', ') AS tenant_phone
      FROM rooms r LEFT JOIN tenants t ON t.room_id = r.id
+     WHERE r.status <> 'deleted'
      GROUP BY r.id ORDER BY r.floor, r.room_number`,
   );
   const s = summaryRows[0];

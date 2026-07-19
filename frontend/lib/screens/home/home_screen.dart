@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
           body: MaintenanceListScreen(
             apiClient: widget.apiClient,
             isTenant: false,
+            isManager: widget.user.role == 'manager',
           ),
         ),
       ),

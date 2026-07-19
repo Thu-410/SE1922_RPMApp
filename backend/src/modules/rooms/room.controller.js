@@ -5,7 +5,7 @@ const getById = async (req, res, next) => { try { res.json({ success: true, data
 const create = async (req, res, next) => { try { res.status(201).json({ success: true, message: 'Thêm phòng thành công', data: await service.create(req.body) }); } catch (error) { next(error); } };
 const update = async (req, res, next) => { try { res.json({ success: true, message: 'Cập nhật phòng thành công', data: await service.update(req.params.id, req.body) }); } catch (error) { next(error); } };
 const updateStatus = async (req, res, next) => { try { res.json({ success: true, message: 'Cập nhật trạng thái phòng thành công', data: await service.update(req.params.id, { status: req.body.status }) }); } catch (error) { next(error); } };
-const remove = async (req, res, next) => { try { await service.remove(req.params.id); res.json({ success: true, message: 'Xóa phòng thành công' }); } catch (error) { next(error); } };
+const remove = async (req, res, next) => { try { await service.remove(req.params.id); res.json({ success: true, message: 'Đã chuyển phòng vào lịch sử' }); } catch (error) { next(error); } };
 const uploadImage = async (req, res, next) => {
   try {
     const path = await service.uploadImage(req.body);

@@ -59,14 +59,15 @@ const getCalculationSource = async (payload, connection = pool) => {
      FROM contracts c
      JOIN tenants t ON t.id = c.tenant_id
      WHERE c.room_id = ?
-       AND c.status = 'active'
+       AND c.status IN ('active', 'expired', 'terminated')
        AND c.start_date <= ?
        AND c.end_date >= ?
+       AND (c.terminated_at IS NULL OR c.terminated_at >= ?)
      ORDER BY c.start_date DESC
      LIMIT 1`,
-    [roomId, invoicePeriod.lastDay, invoicePeriod.firstDay],
+    [roomId, invoicePeriod.lastDay, invoicePeriod.firstDay, invoicePeriod.firstDay],
   );
-  if (contracts.length === 0) throw new AppError(409, 'No active contract covers this room and billing period');
+  if (contracts.length === 0) throw new AppError(409, 'Không có hợp đồng có hiệu lực trong kỳ hóa đơn của phòng này');
 
   const [readings] = await connection.execute(
     `SELECT * FROM utility_readings
@@ -381,10 +382,10 @@ const listInvoices = async (query) => {
 
 const getTenantIdByUserId = async (userId) => {
   const [rows] = await pool.execute(
-    'SELECT id FROM tenants WHERE user_id = ? AND status = \'active\' LIMIT 1',
+    'SELECT id FROM tenants WHERE user_id = ? LIMIT 1',
     [userId],
   );
-  if (rows.length === 0) throw new AppError(404, 'No active tenant profile is linked to this account');
+  if (rows.length === 0) throw new AppError(404, 'Không có hồ sơ người thuê liên kết với tài khoản này');
   return rows[0].id;
 };
 

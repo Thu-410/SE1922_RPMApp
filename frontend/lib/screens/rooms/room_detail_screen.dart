@@ -52,9 +52,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
   Future<void> _delete(Room room) async {
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
-      title: Text('Xóa phòng ${room.roomNumber}?'),
-      content: const Text('Chỉ phòng chưa từng phát sinh dữ liệu liên quan mới có thể xóa.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Xóa'))],
+      title: Text('Đưa phòng ${room.roomNumber} vào lịch sử?'),
+      content: const Text('Phòng sẽ được ẩn khỏi danh sách quản lý nhưng vẫn được giữ trong database để tra cứu hợp đồng, hóa đơn và dữ liệu cũ.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Đưa vào lịch sử'))],
     ));
     if (confirmed != true) return;
     try { await widget.service.delete(room.id); if (mounted) Navigator.pop(context, true); }
@@ -73,7 +73,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             IconButton(onPressed: () => _edit(room), tooltip: 'Sửa phòng', icon: const Icon(Icons.edit_outlined)),
             PopupMenuButton<String>(onSelected: (value) { if (value == 'status') _changeStatus(room); if (value == 'delete') _delete(room); }, itemBuilder: (_) => const [
               PopupMenuItem(value: 'status', child: Text('Đổi trạng thái')),
-              PopupMenuItem(value: 'delete', child: Text('Xóa phòng')),
+              PopupMenuItem(value: 'delete', child: Text('Đưa vào lịch sử')),
             ]),
           ] : null,
         ),

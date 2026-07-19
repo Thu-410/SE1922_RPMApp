@@ -13,6 +13,13 @@ const date = (value, label) => {
   return result;
 };
 
+const statusForDates = (requestedStatus, startDate, endDate, today = new Date().toISOString().slice(0, 10)) => {
+  if (requestedStatus === 'pending') return 'pending';
+  if (endDate < today) return 'expired';
+  if (startDate > today) return 'pending';
+  return 'active';
+};
+
 const getById = async (value, executor = pool) => {
   const id = parseId(value);
   const [rows] = await executor.execute(
@@ -80,8 +87,9 @@ const create = async (body) => {
   const monthlyPrice = Number(body.monthly_price);
   const depositAmount = Number(body.deposit_amount || 0);
   if (!Number.isFinite(monthlyPrice) || monthlyPrice < 0 || !Number.isFinite(depositAmount) || depositAmount < 0) throw new AppError(400, 'Giá thuê và tiền cọc phải là số không âm');
-  const status = body.status || 'active';
-  if (!['pending', 'active'].includes(status)) throw new AppError(400, 'Hợp đồng mới chỉ có thể ở trạng thái chờ hoặc hoạt động');
+  const requestedStatus = body.status || 'active';
+  if (!['pending', 'active'].includes(requestedStatus)) throw new AppError(400, 'Hợp đồng mới chỉ có thể ở trạng thái chờ hoặc hoạt động');
+  const status = statusForDates(requestedStatus, startDate, endDate);
   const note = body.note?.toString().trim() || null;
   const connection = await pool.getConnection();
   try {
@@ -90,7 +98,7 @@ const create = async (body) => {
     const [[tenant]] = await connection.execute('SELECT id,status FROM tenants WHERE id=? FOR UPDATE', [tenantId]);
     if (!room) throw new AppError(404, 'Không tìm thấy phòng');
     if (!tenant) throw new AppError(404, 'Không tìm thấy người thuê');
-    if (['maintenance', 'inactive'].includes(room.status)) throw new AppError(409, 'Không thể tạo hợp đồng cho phòng đang bảo trì hoặc ngừng hoạt động');
+    if (['maintenance', 'inactive', 'deleted'].includes(room.status)) throw new AppError(409, 'Không thể tạo hợp đồng cho phòng đang bảo trì, ngừng hoạt động hoặc đã lưu lịch sử');
     if (status === 'active') {
       const [[roomConflict]] = await connection.execute("SELECT COUNT(*) total FROM contracts WHERE room_id=? AND status='active'", [roomId]);
       const [[tenantConflict]] = await connection.execute("SELECT COUNT(*) total FROM contracts WHERE tenant_id=? AND status='active'", [tenantId]);
@@ -136,7 +144,7 @@ const activate = async (value) => {
     if (contract.status !== 'pending') throw new AppError(409, 'Chỉ có thể kích hoạt hợp đồng đang chờ');
     if (contract.end_date < new Date().toISOString().slice(0, 10)) throw new AppError(409, 'Không thể kích hoạt hợp đồng đã quá ngày kết thúc');
     const [[room]] = await connection.execute('SELECT status FROM rooms WHERE id=? FOR UPDATE', [contract.room_id]);
-    if (['maintenance', 'inactive'].includes(room.status)) throw new AppError(409, 'Phòng đang bảo trì hoặc ngừng hoạt động');
+    if (['maintenance', 'inactive', 'deleted'].includes(room.status)) throw new AppError(409, 'Phòng đang bảo trì, ngừng hoạt động hoặc đã lưu lịch sử');
     const [[roomConflict]] = await connection.execute("SELECT COUNT(*) total FROM contracts WHERE room_id=? AND status='active' AND id<>?", [contract.room_id, id]);
     const [[tenantConflict]] = await connection.execute("SELECT COUNT(*) total FROM contracts WHERE tenant_id=? AND status='active' AND id<>?", [contract.tenant_id, id]);
     if (roomConflict.total > 0) throw new AppError(409, 'Phòng đã có hợp đồng đang hoạt động');

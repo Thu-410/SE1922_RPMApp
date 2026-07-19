@@ -199,11 +199,15 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
             items: const [
               DropdownMenuItem(
                 value: 'active',
-                child: Text('Có hiệu lực ngay'),
+                child: Text('Tự động theo thời hạn'),
               ),
               DropdownMenuItem(value: 'pending', child: Text('Chờ hiệu lực')),
             ],
             onChanged: (v) => _status = v!,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Nếu thời hạn đã kết thúc, hợp đồng sẽ được lưu là hết hạn nhưng vẫn dùng được để tạo hóa đơn cho kỳ quá khứ mà hợp đồng có hiệu lực.',
           ),
           const SizedBox(height: 12),
           TextField(

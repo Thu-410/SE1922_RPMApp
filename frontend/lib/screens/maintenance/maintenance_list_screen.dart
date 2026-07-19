@@ -9,9 +9,11 @@ class MaintenanceListScreen extends StatefulWidget {
     super.key,
     required this.apiClient,
     required this.isTenant,
+    this.isManager = false,
   });
   final ApiClient apiClient;
   final bool isTenant;
+  final bool isManager;
   @override
   State<MaintenanceListScreen> createState() => _MaintenanceListScreenState();
 }
@@ -102,6 +104,8 @@ class _MaintenanceListScreenState extends State<MaintenanceListScreen> {
                                 apiClient: widget.apiClient,
                                 id: item.id,
                                 canUpdate: !widget.isTenant,
+                                canCancel: widget.isTenant,
+                                isManager: widget.isManager,
                               ),
                             ),
                           );
@@ -268,10 +272,14 @@ class MaintenanceDetailScreen extends StatefulWidget {
     required this.apiClient,
     required this.id,
     required this.canUpdate,
+    this.canCancel = false,
+    this.isManager = false,
   });
   final ApiClient apiClient;
   final int id;
   final bool canUpdate;
+  final bool canCancel;
+  final bool isManager;
   @override
   State<MaintenanceDetailScreen> createState() =>
       _MaintenanceDetailScreenState();
@@ -288,6 +296,34 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
   }
 
   void _reload() => _future = _service.getById(widget.id);
+  List<String> _allowedStatuses(MaintenanceRequest item) {
+    if (widget.isManager) {
+      return switch (item.status) {
+        'pending' => ['pending', 'processing', 'cancelled'],
+        'processing' => ['processing', 'completed', 'cancelled'],
+        _ => [item.status],
+      };
+    }
+    return switch (item.status) {
+      'pending' => ['pending', 'processing'],
+      'processing' => ['processing', 'completed'],
+      _ => [item.status],
+    };
+  }
+
+  Future<void> _cancel(MaintenanceRequest item) async {
+    try {
+      await _service.updateStatus(item.id, 'cancelled', '');
+      if (mounted) setState(_reload);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    }
+  }
+
   Future<void> _update(MaintenanceRequest item) async {
     final note = TextEditingController(text: item.managerNote);
     var status = item.status;
@@ -301,7 +337,7 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
             children: [
               DropdownButtonFormField<String>(
                 initialValue: status,
-                items: ['pending', 'processing', 'completed', 'cancelled']
+                items: _allowedStatuses(item)
                     .map(
                       (v) => DropdownMenuItem(
                         value: v,
@@ -414,6 +450,14 @@ class _MaintenanceDetailScreenState extends State<MaintenanceDetailScreen> {
                 onPressed: () => _update(item),
                 icon: const Icon(Icons.edit),
                 label: const Text('Cập nhật trạng thái'),
+              ),
+            ],
+            if (widget.canCancel && item.status == 'pending') ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => _cancel(item),
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Hủy yêu cầu'),
               ),
             ],
           ],

@@ -3,6 +3,18 @@ const AppError = require('../../utils/app-error');
 
 const STATUSES = ['pending', 'processing', 'completed', 'cancelled'];
 const ISSUE_TYPES = ['electric', 'water', 'internet', 'furniture', 'lock', 'cleaning', 'other'];
+const MANAGEMENT_TRANSITIONS = {
+  pending: ['processing', 'cancelled'],
+  processing: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
+const STAFF_TRANSITIONS = {
+  pending: ['processing'],
+  processing: ['completed'],
+  completed: [],
+  cancelled: [],
+};
 
 const positiveId = (value, field = 'id') => {
   const id = Number(value);
@@ -111,20 +123,67 @@ const create = async (payload, user) => {
 
 const updateStatus = async (id, payload, user) => {
   const requestId = positiveId(id);
-  if (!STATUSES.includes(payload.status)) throw new AppError(400, 'Trạng thái không hợp lệ');
-  let assignedStaffId = payload.assigned_staff_id ?? null;
-  if (assignedStaffId != null) assignedStaffId = positiveId(assignedStaffId, 'assigned_staff_id');
-  if (user.role === 'staff' && assignedStaffId == null) assignedStaffId = user.id;
-  const [result] = await pool.execute(
-    `UPDATE maintenance_requests
-     SET status = ?, manager_note = COALESCE(?, manager_note),
-         assigned_staff_id = COALESCE(?, assigned_staff_id),
-         completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE NULL END
-     WHERE id = ?`,
-    [payload.status, payload.manager_note || null, assignedStaffId, payload.status, requestId],
-  );
-  if (!result.affectedRows) throw new AppError(404, 'Không tìm thấy yêu cầu sửa chữa');
-  return getById(requestId, user);
+  const targetStatus = payload.status;
+  if (!STATUSES.includes(targetStatus)) throw new AppError(400, 'Trạng thái không hợp lệ');
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[request]] = await connection.execute(
+      `SELECT mr.*, t.user_id AS tenant_user_id
+       FROM maintenance_requests mr
+       JOIN tenants t ON t.id = mr.tenant_id
+       WHERE mr.id = ? FOR UPDATE`,
+      [requestId],
+    );
+    if (!request) throw new AppError(404, 'Không tìm thấy yêu cầu sửa chữa');
+
+    if (user.role === 'tenant') {
+      if (request.tenant_user_id !== user.id) throw new AppError(403, 'Bạn không thể cập nhật yêu cầu của người thuê khác');
+      if (request.status !== 'pending' || targetStatus !== 'cancelled') {
+        throw new AppError(409, 'Người thuê chỉ có thể hủy yêu cầu đang chờ xử lý');
+      }
+      await connection.execute("UPDATE maintenance_requests SET status = 'cancelled' WHERE id = ?", [requestId]);
+    } else {
+      const transitions = user.role === 'manager' ? MANAGEMENT_TRANSITIONS : STAFF_TRANSITIONS;
+      const allowed = targetStatus === request.status || transitions[request.status]?.includes(targetStatus);
+      if (!allowed) throw new AppError(409, `Không thể chuyển yêu cầu từ ${request.status} sang ${targetStatus}`);
+
+      let assignedStaffId = request.assigned_staff_id;
+      if (user.role === 'staff') {
+        if (assignedStaffId != null && assignedStaffId !== user.id) {
+          throw new AppError(403, 'Yêu cầu này đã được giao cho nhân viên khác');
+        }
+        if (targetStatus === 'processing' || targetStatus === 'completed') assignedStaffId = user.id;
+      } else if (payload.assigned_staff_id !== undefined && payload.assigned_staff_id !== null) {
+        assignedStaffId = positiveId(payload.assigned_staff_id, 'assigned_staff_id');
+        const [[staff]] = await connection.execute(
+          `SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id
+           WHERE u.id = ? AND u.status = 'active' AND r.name = 'staff' LIMIT 1`,
+          [assignedStaffId],
+        );
+        if (!staff) throw new AppError(400, 'Nhân viên được giao không hợp lệ hoặc đã ngừng hoạt động');
+      }
+
+      const note = payload.manager_note?.toString().trim() || null;
+      await connection.execute(
+        `UPDATE maintenance_requests
+         SET status = ?, manager_note = COALESCE(?, manager_note), assigned_staff_id = ?,
+             completed_at = CASE
+               WHEN ? = 'completed' THEN COALESCE(completed_at, CURRENT_TIMESTAMP)
+               ELSE completed_at
+             END
+         WHERE id = ?`,
+        [targetStatus, note, assignedStaffId, targetStatus, requestId],
+      );
+    }
+    await connection.commit();
+    return getById(requestId, user);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 module.exports = { list, getById, create, updateStatus };

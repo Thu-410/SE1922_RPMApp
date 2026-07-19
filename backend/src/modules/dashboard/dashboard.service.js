@@ -5,7 +5,7 @@ const summary = async (query) => {
   const month = Number(query.month || new Date().getMonth() + 1);
   const year = Number(query.year || new Date().getFullYear());
   const [[roomRows], [invoiceRows], [maintenanceRows], [revenueRows]] = await Promise.all([
-    pool.execute(`SELECT COUNT(*) AS total_rooms, SUM(status='occupied') AS occupied_rooms, SUM(status='available') AS available_rooms, SUM(status='maintenance') AS maintenance_rooms, SUM(status='inactive') AS inactive_rooms FROM rooms`),
+    pool.execute(`SELECT COUNT(*) AS total_rooms, SUM(status='occupied') AS occupied_rooms, SUM(status='available') AS available_rooms, SUM(status='maintenance') AS maintenance_rooms, SUM(status='inactive') AS inactive_rooms FROM rooms WHERE status <> 'deleted'`),
     pool.execute(`SELECT COUNT(*) AS total_invoices, SUM(status='unpaid') AS unpaid_invoices, SUM(status='overdue') AS overdue_invoices, SUM(status='paid') AS paid_invoices, COALESCE(SUM(CASE WHEN status IN ('unpaid','overdue') THEN total_amount ELSE 0 END),0) AS total_debt_amount FROM invoices`),
     pool.execute(`SELECT COUNT(*) AS total_maintenance_requests, SUM(status='pending') AS pending_requests, SUM(status='processing') AS processing_requests, SUM(status='completed') AS completed_requests, SUM(status='cancelled') AS cancelled_requests FROM maintenance_requests`),
     pool.execute(`SELECT COALESCE(SUM(amount),0) AS current_month_revenue FROM payments WHERE MONTH(payment_date)=? AND YEAR(payment_date)=?`, [month, year]),

@@ -45,7 +45,7 @@ CREATE INDEX idx_users_status ON users(status);
 
 -- =========================================================
 -- 3. ROOMS
--- status: available / occupied / maintenance / inactive
+-- status: available / occupied / maintenance / inactive / deleted (xóa mềm)
 -- =========================================================
 CREATE TABLE rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -54,7 +54,7 @@ CREATE TABLE rooms (
   area DECIMAL(10,2) NOT NULL DEFAULT 0,
   price DECIMAL(12,2) NOT NULL DEFAULT 0,
   deposit DECIMAL(12,2) NOT NULL DEFAULT 0,
-  status ENUM('available', 'occupied', 'maintenance', 'inactive') NOT NULL DEFAULT 'available',
+  status ENUM('available', 'occupied', 'maintenance', 'inactive', 'deleted') NOT NULL DEFAULT 'available',
   description TEXT,
   image_url VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

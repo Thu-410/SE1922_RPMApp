@@ -59,6 +59,7 @@ const list = async (query) => {
   const keyword = query.keyword?.toString().trim();
   const conditions = [];
   const params = [];
+  conditions.push("r.status <> 'deleted'");
   if (status) { conditions.push('r.status = ?'); params.push(status); }
   if (keyword) { conditions.push('r.room_number LIKE ?'); params.push(`%${keyword}%`); }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -87,12 +88,12 @@ const create = async (body) => {
 
 const update = async (value, body) => {
   const id = parseId(value);
-  await getById(id);
+  const current = await getById(id);
+  if (current.status === 'deleted') throw new AppError(409, 'Phòng đã được chuyển vào lịch sử và không thể cập nhật');
   const data = validate(body, true);
   const fields = Object.keys(data);
   if (!fields.length) throw new AppError(400, 'Không có thông tin phòng cần cập nhật');
   if (data.status === 'available') {
-    const current = await getById(id);
     if (current.active_tenant_count > 0 || current.active_contract_count > 0) {
       throw new AppError(409, 'Phòng đang có người thuê hoặc hợp đồng hoạt động nên không thể chuyển sang còn trống');
     }
@@ -108,13 +109,31 @@ const update = async (value, body) => {
 
 const remove = async (value) => {
   const id = parseId(value);
-  const room = await getById(id);
-  const tables = ['tenants', 'contracts', 'utility_readings', 'invoices', 'maintenance_requests'];
-  for (const table of tables) {
-    const [rows] = await pool.execute(`SELECT COUNT(*) AS total FROM ${table} WHERE room_id = ?`, [id]);
-    if (rows[0].total > 0) throw new AppError(409, `Phòng ${room.room_number} đã có dữ liệu liên quan. Hãy chuyển phòng sang trạng thái ngừng hoạt động thay vì xóa.`);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[room]] = await connection.execute(
+      "SELECT id, room_number, status FROM rooms WHERE id = ? FOR UPDATE",
+      [id],
+    );
+    if (!room || room.status === 'deleted') throw new AppError(404, 'Không tìm thấy phòng');
+    const [[usage]] = await connection.execute(
+      `SELECT
+        (SELECT COUNT(*) FROM tenants WHERE room_id = ? AND status = 'active') AS active_tenants,
+        (SELECT COUNT(*) FROM contracts WHERE room_id = ? AND status = 'active') AS active_contracts`,
+      [id, id],
+    );
+    if (Number(usage.active_tenants) > 0 || Number(usage.active_contracts) > 0) {
+      throw new AppError(409, `Phòng ${room.room_number} đang có người thuê hoặc hợp đồng hoạt động nên không thể chuyển vào lịch sử`);
+    }
+    await connection.execute("UPDATE rooms SET status = 'deleted' WHERE id = ?", [id]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
-  await pool.execute('DELETE FROM rooms WHERE id = ?', [id]);
 };
 
 const uploadImage = async (body) => {
