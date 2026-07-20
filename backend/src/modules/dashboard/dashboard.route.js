@@ -1,0 +1,10 @@
+const express = require('express');
+const controller = require('./dashboard.controller');
+const authenticate = require('../../middlewares/auth.middleware');
+const authorizeRoles = require('../../middlewares/role.middleware');
+const router = express.Router();
+router.use(authenticate, authorizeRoles('manager', 'staff'));
+router.get('/summary', controller.summary);
+router.get('/revenue-overview', controller.revenueOverview);
+router.get('/recent-maintenance', controller.recentMaintenance);
+module.exports = router;

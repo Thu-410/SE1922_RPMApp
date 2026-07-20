@@ -1,0 +1,12 @@
+const router = require('express').Router();
+const controller = require('./contract.controller');
+const authenticate = require('../../middlewares/auth.middleware');
+const authorizeRoles = require('../../middlewares/role.middleware');
+router.use(authenticate);
+router.get('/', authorizeRoles('manager', 'staff'), controller.list);
+router.get('/:id', authorizeRoles('manager', 'staff'), controller.getById);
+router.post('/', authorizeRoles('manager'), controller.create);
+router.put('/:id/extend', authorizeRoles('manager'), controller.extend);
+router.put('/:id/activate', authorizeRoles('manager'), controller.activate);
+router.put('/:id/terminate', authorizeRoles('manager'), controller.terminate);
+module.exports = router;
