@@ -1,0 +1,4 @@
+storePassword=THAY_BANG_MAT_KHAU_KEYSTORE
+keyPassword=THAY_BANG_MAT_KHAU_KEY
+keyAlias=rental-management
+storeFile=../app/rental-management-upload-key.jks
